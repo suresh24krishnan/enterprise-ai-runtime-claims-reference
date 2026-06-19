@@ -1,0 +1,11 @@
+node_modules/
+dist/
+.git/
+.claude/
+.vite/
+__pycache__/
+*.pyc
+.env
+.DS_Store
+.idea/
+.vscode/

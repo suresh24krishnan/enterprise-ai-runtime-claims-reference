@@ -1,3 +1,12 @@
+---
+title: Enterprise AI Runtime Claims Reference
+emoji: 🧠
+colorFrom: blue
+colorTo: indigo
+sdk: docker
+app_port: 7860
+---
+
 # Enterprise AI Runtime – Claims Reference Implementation
 
 Governed enterprise AI runtime demonstrating AI-assisted claims orchestration, evidence-grounded documentation, LangGraph supervision, enterprise connector contracts, human approval, and immutable auditability.

@@ -12,12 +12,16 @@ No authentication — this is a prototype to prove orchestration architecture.
 """
 
 from __future__ import annotations
+import os
 import time
 import uuid
+from pathlib import Path
 from typing import Any
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from workflow.graph import workflow_graph
@@ -144,3 +148,21 @@ def get_trace(run_id: str):
 @app.get("/health")
 def health():
     return {"status": "ok", "service": "qarl-claims-backend"}
+
+
+# ─── Static frontend (production / HF Space) ─────────────────────────────────
+# Activated only when the Vite build output (dist/) is present alongside the
+# backend directory. In local dev the Vite dev server handles the frontend.
+
+_DIST = Path(__file__).parent.parent / "dist"
+if _DIST.is_dir():
+    _ASSETS = _DIST / "assets"
+    if _ASSETS.is_dir():
+        app.mount("/assets", StaticFiles(directory=str(_ASSETS)), name="assets")
+
+    @app.get("/{full_path:path}")
+    def serve_frontend(full_path: str):
+        candidate = _DIST / full_path
+        if candidate.is_file():
+            return FileResponse(str(candidate))
+        return FileResponse(str(_DIST / "index.html"))
