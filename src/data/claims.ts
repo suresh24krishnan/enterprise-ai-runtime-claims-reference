@@ -1,0 +1,40 @@
+import type { Claim } from '../types';
+
+export const claims: Claim[] = [
+  {
+    id: 'CLM-2024-0892',
+    claimantName: 'Del Volente Farms',
+    lossType: 'Windstorm',
+    status: 'In Progress',
+    assignedAdjuster: 'Sarah Mitchell',
+    dateOfLoss: '08/29/2024',
+    policyNumber: 'LPK 0505096',
+    reserve: 346000,
+    initialReserve: 77000,
+    slaDaysRemaining: 3,
+  },
+  {
+    id: 'CLM-2024-0876',
+    claimantName: 'Hartwell Agricultural Co.',
+    lossType: 'Hail Damage',
+    status: 'Open',
+    assignedAdjuster: 'James Torres',
+    dateOfLoss: '08/22/2024',
+    policyNumber: 'LPK 0491204',
+    reserve: 125000,
+    initialReserve: 65000,
+    slaDaysRemaining: 7,
+  },
+  {
+    id: 'CLM-2024-0861',
+    claimantName: 'Greenfield Orchards LLC',
+    lossType: 'Fire',
+    status: 'Pending',
+    assignedAdjuster: 'Sarah Mitchell',
+    dateOfLoss: '08/15/2024',
+    policyNumber: 'LPK 0478833',
+    reserve: 89500,
+    initialReserve: 42000,
+    slaDaysRemaining: 12,
+  },
+];

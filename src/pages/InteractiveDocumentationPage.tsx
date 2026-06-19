@@ -1,0 +1,1177 @@
+import { useState } from 'react';
+import type { Claim } from '../types';
+
+interface EnrichmentPackage {
+  confidence: number;
+  result: string;
+  type: string;
+  rom: string;
+}
+
+interface AlertPackage {
+  confidence: number;
+  alertsCount: number;
+  communicationDrafted: boolean;
+}
+
+interface DocumentationPackage {
+  participants: string[];
+  assessment: string[];
+  recommendation: string;
+  confidence: number;
+  reserveAmount: number;
+  enrichment?: EnrichmentPackage;
+  alerts?: AlertPackage;
+}
+
+interface Props {
+  claim: Claim;
+  onBack: () => void;
+  docPackage?: DocumentationPackage | null;
+  documentationApproved?: boolean;
+  onDocumentationApproved?: () => void;
+  claimCenterWritten?: boolean;
+  onClaimCenterWritten?: () => void;
+}
+
+/* ── Design tokens ── */
+const BLUE       = '#1976d2';
+const NAVY       = '#0f3460';
+const CARD_SHADOW = '0 1px 4px rgba(15,52,96,0.06), 0 6px 20px rgba(15,52,96,0.07)';
+
+/* ── Confidence computation (never 0%) ── */
+function computeReserveConfidence(pkg?: DocumentationPackage | null): number {
+  // Base: 92 from Coverage Verification + Evidence Grounding (always present)
+  // +2 for Multi-Party Coordination, +1 for Auto-Enrichment, +1 for Auto-Alerts
+  const hasMpc = !!(pkg?.confidence && pkg.confidence > 0);
+  const hasEnr = !!pkg?.enrichment;
+  const hasAlt = !!pkg?.alerts;
+  return 92 + (hasMpc ? 2 : 0) + (hasEnr ? 1 : 0) + (hasAlt ? 1 : 0);
+}
+
+/* ── Mock data builders ── */
+function buildNote(claim: Claim, pkg?: DocumentationPackage | null): string {
+  const hasMpc = !!(pkg && pkg.participants.length > 0);
+  const hasEnr = !!pkg?.enrichment;
+  const hasAlt = !!pkg?.alerts;
+  const confidence = computeReserveConfidence(pkg);
+
+  /* ── Coverage verification section ── */
+  const coverageSection = hasMpc
+    ? `Policy ${claim.policyNumber} confirmed active with ${claim.lossType} coverage in-force as of ${claim.dateOfLoss}.\nCoverage Specialist confirmed applicability of additional loss type.\nCoverage verification confidence: 98%.`
+    : `Coverage has been confirmed under Policy ${claim.policyNumber}. A review of policy terms confirms active ${claim.lossType} coverage at the time of the reported loss on ${claim.dateOfLoss}.`;
+
+  /* ── Multi-party coordination section ── */
+  const mpcBlock = hasMpc
+    ? `\n─────────────────────────────────────────
+MULTI-PARTY COORDINATION
+─────────────────────────────────────────
+
+Participants consulted: ${pkg!.participants.join(', ')}.
+
+Independent Adjuster findings:
+${pkg!.assessment.map(a => `  • ${a}`).join('\n')}
+
+Reserve recommendation updated to $${claim.reserve.toLocaleString()} based on coordinated assessment.`
+    : '';
+
+  /* ── Loss quantification section (enrichment) ── */
+  const lossBlock = hasEnr
+    ? `\n─────────────────────────────────────────
+LOSS QUANTIFICATION
+─────────────────────────────────────────
+
+Weather Verification:  Corroborated via NOAA Weather API and CAT event feed.
+Fraud Assessment:      No fraud indicators identified. Fraud risk score: Low.
+Reserve Benchmark:     $${claim.reserve.toLocaleString()} supported by 27 comparable losses (median $338k).
+Benchmark Deviation:   +2.3% within acceptable tolerance.
+Enrichment Confidence: ${pkg!.enrichment!.confidence}%`
+    : '';
+
+  /* ── Reserve justification ── */
+  const reserveJustification = hasMpc
+    ? `Multi-party coordination confirmed additional exposure:\n${pkg!.assessment.map(a => `  • ${a}`).join('\n')}\n\nReserve increase to $${claim.reserve.toLocaleString()} recommended based on coordinated assessment.${hasEnr ? '\n\nAuto-enrichment validated the reserve position against 27 comparable losses.' : ''}`
+    : `Field investigation confirmed the extent of ${claim.lossType.toLowerCase()} damage exceeds the initial FNOL estimate. Comparable loss analysis and preliminary contractor estimates support the revised reserve position.`;
+
+  /* ── Auto-alerts section ── */
+  const alertsBlock = hasAlt
+    ? `\n─────────────────────────────────────────
+AUTO-ALERT CONFIGURATION
+─────────────────────────────────────────
+
+The following automated communications and alerts have been configured:
+
+  • Claim file notice prepared for adjuster review
+  • Future alert scheduled — follow-up in ${claim.slaDaysRemaining} business days
+  • Agent communication email drafted and queued for review
+  • Supervisor notification queued for reserve change review
+  • SLA monitoring activated (${claim.slaDaysRemaining} business days remaining)
+
+All alerts are aligned to claim SLA and priority level.`
+    : '';
+
+  /* ── AI generation notice ── */
+  const sources = [
+    'QARL AI Coverage Engine',
+    hasMpc ? `Multi-Party Coordination (${pkg!.participants.join(', ')})` : null,
+    hasEnr ? 'Auto-Enrichment Analysis (fraud scoring, weather, reserve benchmark)' : null,
+    hasAlt ? 'Auto-Alerts (5 configured, SLA monitoring active)' : null,
+  ].filter(Boolean);
+
+  const aiNotice = `Draft generated by QARL — Agentic Claims Assistant\nSources: ${sources.join('; ')}\nConfidence: ${confidence}%\nPending adjuster review and approval before submission to ClaimCenter.`;
+
+  return `CLAIM NOTE — ADJUSTER RESERVE DOCUMENTATION
+
+Claim:         ${claim.id}
+Insured:       ${claim.claimantName}
+Policy:        ${claim.policyNumber}
+Date of Loss:  ${claim.dateOfLoss}
+Loss Type:     ${claim.lossType}
+Adjuster:      ${claim.assignedAdjuster}
+
+─────────────────────────────────────────
+COVERAGE VERIFICATION
+─────────────────────────────────────────
+
+${coverageSection}${mpcBlock}${lossBlock}
+
+─────────────────────────────────────────
+RESERVE ANALYSIS
+─────────────────────────────────────────
+
+Initial reserve was set at $${claim.initialReserve.toLocaleString()} based on preliminary FNOL information. Following field assessment and review of comparable losses, a reserve increase to $${claim.reserve.toLocaleString()} is recommended.
+
+Justification: ${reserveJustification}
+
+Variance: +$${(claim.reserve - claim.initialReserve).toLocaleString()} (${Math.round(((claim.reserve - claim.initialReserve) / claim.initialReserve) * 100)}% above initial)${alertsBlock}
+
+─────────────────────────────────────────
+RECOMMENDED ACTIONS
+─────────────────────────────────────────
+
+• Schedule on-site inspection within 48 hours
+• Request independent adjuster (IA) report
+• Collect and review all submitted documentation
+• Obtain certified contractor estimates
+• Monitor SLA: ${claim.slaDaysRemaining} business days remaining
+
+─────────────────────────────────────────
+AI GENERATION NOTICE
+─────────────────────────────────────────
+
+${aiNotice}`;
+}
+
+function buildEmail(claim: Claim, pkg?: DocumentationPackage | null) {
+  const delta = claim.reserve - claim.initialReserve;
+  const pct   = Math.round((delta / claim.initialReserve) * 100);
+
+  const alertSection = pkg?.alerts
+    ? `\nAuto-alerts configured:\n  • Claim file notice prepared\n  • Future alert scheduled\n  • Agent communication drafted\n  • Supervisor notification queued\n  • SLA monitoring active`
+    : '';
+
+  const body = pkg
+    ? `Dear ${claim.assignedAdjuster},
+
+This is to confirm the assignment of claim ${claim.id} for ${claim.claimantName}.
+
+Policy #${claim.policyNumber} has been verified with active ${claim.lossType.toLowerCase()} coverage. The claim was reported on ${claim.dateOfLoss} with an initial reserve of $${claim.initialReserve.toLocaleString()}, subsequently recommended for increase to $${claim.reserve.toLocaleString()} (+${pct}%).
+
+Multi-party coordination summary:
+  • Independent Adjuster identified additional structural and equipment exposure.
+  • Coverage Specialist confirmed applicability of additional loss.
+  • Reserve recommendation has been updated to $${claim.reserve.toLocaleString()}.
+  • Supporting documentation attached to ClaimCenter record.
+
+Please proceed with the full investigation based on the coordinated assessment.
+
+Next steps:
+  • Review the multi-party coordination summary attached
+  • Submit reserve recommendation for supervisor approval
+  • Document all findings in ClaimCenter within 48 hours
+  • SLA: ${claim.slaDaysRemaining} business days remaining
+${alertSection}
+Best regards,
+QARL — Agentic Claims Assistant`
+    : `Dear ${claim.assignedAdjuster},
+
+This is to confirm the assignment of claim ${claim.id} for ${claim.claimantName}.
+
+Policy #${claim.policyNumber} has been verified with active ${claim.lossType.toLowerCase()} coverage. The claim was reported on ${claim.dateOfLoss} with an initial reserve of $${claim.initialReserve.toLocaleString()}, subsequently recommended for increase to $${claim.reserve.toLocaleString()} (+${pct}%).
+
+Please review the claim file and initiate the coverage investigation. All supporting documentation has been attached to the ClaimCenter record.
+
+Next steps:
+  • Contact the insured to schedule an on-site inspection
+  • Review the reserve recommendation and submit for supervisor approval
+  • Document all findings in ClaimCenter within 48 hours
+  • SLA: ${claim.slaDaysRemaining} business days remaining
+${alertSection}
+Best regards,
+QARL — Agentic Claims Assistant`;
+
+  return {
+    to:      'adjuster@insurer.com',
+    subject: `Assignment – ${claim.claimantName} ${claim.lossType} Claim ${claim.id}`,
+    body,
+  };
+}
+
+function buildEvidence(claim: Claim, pkg?: DocumentationPackage | null) {
+  const thirdLabel = ['Windstorm', 'Hail Damage'].includes(claim.lossType)
+    ? 'Weather Correlation'
+    : claim.lossType === 'Fire'
+    ? 'Fire Incident Report'
+    : 'Loss Cause Correlation';
+  const base = [
+    { label: 'Policy Verification',  pct: 99, detail: `Policy ${claim.policyNumber} confirmed active` },
+    { label: 'Coverage Analysis',    pct: 98, detail: `${claim.lossType} coverage verified in-force` },
+    { label: thirdLabel,             pct: 97, detail: 'Third-party data source corroborated' },
+    { label: 'Reserve Analysis',     pct: 95, detail: `$${claim.reserve.toLocaleString()} supported by comparables` },
+  ];
+  if (pkg && pkg.participants.length > 0) {
+    base.push({ label: 'Multi-Party Coordination', pct: pkg.confidence > 0 ? pkg.confidence : 92, detail: `Imported from AI orchestration — ${pkg.participants.length} participants consulted` });
+  }
+  if (pkg?.enrichment) {
+    base.push({ label: 'Auto-Enrichment Analysis', pct: pkg.enrichment.confidence, detail: 'Imported from Claims Profile Enrichment.' });
+  }
+  if (pkg?.alerts) {
+    base.push({ label: 'Auto-Alerts & Communication', pct: pkg.alerts.confidence, detail: 'Imported from Communication.' });
+  }
+  return base;
+}
+
+/* ═══════════════════════════════════════════
+   Main page
+═══════════════════════════════════════════ */
+export default function InteractiveDocumentationPage({ claim, onBack, docPackage, documentationApproved, onDocumentationApproved, claimCenterWritten: initialClaimCenterWritten, onClaimCenterWritten }: Props) {
+  const [approved,              setApproved]              = useState(documentationApproved ?? false);
+  const [written,               setWritten]               = useState(false);
+  const [everWritten,           setEverWritten]           = useState(initialClaimCenterWritten ?? false);
+  const [editing,               setEditing]               = useState(false);
+  const [noteContent,           setNoteContent]           = useState(() => buildNote(claim, docPackage));
+  const [regenerated,           setRegenerated]           = useState(false);
+
+  const email    = buildEmail(claim, docPackage);
+  const evidence = buildEvidence(claim, docPackage);
+
+  const handleRegenerate = () => {
+    setNoteContent(buildNote(claim, docPackage));
+    setRegenerated(true);
+    setApproved(false);
+    setWritten(false);
+    setTimeout(() => setRegenerated(false), 2000);
+  };
+
+  const handleWrite = () => {
+    if (approved) {
+      setWritten(true);
+      if (!everWritten) {
+        setEverWritten(true);
+        onClaimCenterWritten?.();
+      }
+    }
+  };
+
+  return (
+    <div className="flex flex-col flex-1 min-h-0 overflow-y-auto" style={{ background: '#f1f5f9' }}>
+
+      {/* ── Header ── */}
+      <PageHeader claim={claim} onBack={onBack} />
+
+      <div style={{ padding: '28px 40px', display: 'flex', flexDirection: 'column', gap: 20 }}>
+
+        {/* ── Executive Summary ── */}
+        <ExecutiveSummary claim={claim} docPackage={docPackage} />
+
+        {/* ── Two-column: Reserve + Claim Note ── */}
+        <div className="grid grid-cols-2 gap-5">
+          <ReserveCard claim={claim} docPackage={docPackage} />
+          <ClaimNoteCard
+            content={noteContent}
+            editing={editing}
+            regenerated={regenerated}
+            onChange={setNoteContent}
+          />
+        </div>
+
+        {/* ── Assignment Email ── */}
+        <EmailSection email={email} />
+
+        {/* ── Evidence & Provenance ── */}
+        <EvidenceSection items={evidence} />
+
+        {/* ── Governance footer ── */}
+        <GovernanceFooter
+          approved={approved}
+          everWritten={everWritten}
+          editing={editing}
+          regenerated={regenerated}
+          onEdit={() => setEditing(e => !e)}
+          onRegenerate={handleRegenerate}
+          onApprove={() => { setApproved(true); setWritten(false); onDocumentationApproved?.(); }}
+          onWrite={handleWrite}
+        />
+      </div>
+
+      {/* ── Write to ClaimCenter modal ── */}
+      {written && <ClaimCenterModal claim={claim} onClose={() => setWritten(false)} />}
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════
+   Page header
+═══════════════════════════════════════════ */
+function PageHeader({ claim, onBack }: { claim: Claim; onBack: () => void }) {
+  return (
+    <div
+      className="shrink-0 border-b border-slate-200"
+      style={{ background: '#fff', padding: '0 40px', boxShadow: '0 1px 4px rgba(15,52,96,0.06)' }}
+    >
+      <div style={{ paddingTop: 22, paddingBottom: 20 }}>
+        <button
+          onClick={onBack}
+          className="flex items-center gap-2 text-slate-400 hover:text-[#1976d2] transition-colors mb-4 font-semibold"
+          style={{ fontSize: 12 }}
+        >
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+            <path d="M9 2.5L4.5 7 9 11.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+          Back to Journey
+        </button>
+
+        <div className="flex items-start justify-between gap-6">
+          <div>
+            <p className="font-black uppercase mb-1" style={{ fontSize: 9, letterSpacing: '0.18em', color: BLUE }}>
+              AI Capability · Step 3 of 5
+            </p>
+            <h1 className="font-black leading-tight" style={{ fontSize: 24, color: NAVY, letterSpacing: '-0.02em' }}>
+              Interactive Documentation
+            </h1>
+            <div className="flex items-center gap-4 mt-1.5">
+              <span className="font-semibold text-slate-500" style={{ fontSize: 13 }}>
+                {claim.claimantName}
+              </span>
+              <span className="text-slate-300">·</span>
+              <span className="font-mono text-slate-500" style={{ fontSize: 12 }}>{claim.id}</span>
+              <span className="text-slate-300">·</span>
+              <span className="font-medium text-slate-500" style={{ fontSize: 13 }}>{claim.lossType}</span>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2.5 shrink-0">
+            <div
+              className="flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50"
+              style={{ padding: '8px 16px' }}
+            >
+              <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
+                <circle cx="6.5" cy="6.5" r="5.5" stroke="#d97706" strokeWidth="1.3"/>
+                <path d="M6.5 3.5v3" stroke="#d97706" strokeWidth="1.3" strokeLinecap="round"/>
+                <circle cx="6.5" cy="9" r="0.6" fill="#d97706"/>
+              </svg>
+              <span className="font-black text-amber-700 uppercase" style={{ fontSize: 10, letterSpacing: '0.12em' }}>
+                Human Review Required
+              </span>
+            </div>
+            <div
+              className="flex items-center gap-2 rounded-xl border border-blue-200 bg-blue-50"
+              style={{ padding: '8px 16px' }}
+            >
+              <span className="rounded-full bg-emerald-400 shrink-0 animate-pulse" style={{ width: 7, height: 7 }} />
+              <span className="font-black text-blue-700 uppercase" style={{ fontSize: 10, letterSpacing: '0.12em' }}>
+                AI Draft Ready
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════
+   Executive Summary — clean hierarchy
+═══════════════════════════════════════════ */
+function ExecutiveSummary({ claim, docPackage }: { claim: Claim; docPackage?: DocumentationPackage | null }) {
+  const items = [
+    { text: `Policy ${claim.policyNumber} verified` },
+    { text: `${claim.lossType} coverage confirmed` },
+    { text: `Reserve recommendation generated ($${claim.reserve.toLocaleString()})` },
+    { text: 'Claim note drafted and ready for review' },
+    { text: 'Assignment email prepared for adjuster' },
+  ];
+
+  const importedPackages = [
+    { label: 'Multi-Party Coordination', present: !!(docPackage?.confidence && docPackage.confidence > 0) },
+    { label: 'Auto-Enrichment',          present: !!docPackage?.enrichment },
+    { label: 'Auto-Alerts',              present: !!docPackage?.alerts },
+  ].filter(p => p.present);
+
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-white overflow-hidden" style={{ boxShadow: CARD_SHADOW }}>
+      {/* Header */}
+      <div
+        className="flex items-center gap-3 border-b border-slate-100"
+        style={{ padding: '14px 24px', background: 'rgba(248,250,252,0.9)' }}
+      >
+        <div
+          className="rounded-xl flex items-center justify-center shrink-0"
+          style={{ width: 30, height: 30, background: `linear-gradient(135deg, ${BLUE} 0%, ${NAVY} 100%)`, boxShadow: '0 2px 6px rgba(25,118,210,0.28)' }}
+        >
+          <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
+            <path d="M2 7l3 3 6-6" stroke="white" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+        </div>
+        <div>
+          <p className="font-black text-[#0f3460] leading-none" style={{ fontSize: 13 }}>
+            Executive Summary
+          </p>
+          <p className="text-slate-400 font-medium leading-none mt-0.5" style={{ fontSize: 11 }}>
+            AI-generated · {claim.claimantName} · {claim.id}
+          </p>
+        </div>
+        {/* Single governance badge */}
+        <div className="ml-auto">
+          <div
+            className="flex items-center gap-1.5 rounded-xl border border-amber-200 bg-amber-50"
+            style={{ padding: '5px 12px' }}
+          >
+            <svg width="11" height="11" viewBox="0 0 11 11" fill="none">
+              <circle cx="5.5" cy="5.5" r="4.5" stroke="#d97706" strokeWidth="1.2"/>
+              <path d="M5.5 3v2.5" stroke="#d97706" strokeWidth="1.2" strokeLinecap="round"/>
+              <circle cx="5.5" cy="7.5" r="0.5" fill="#d97706"/>
+            </svg>
+            <span className="font-black text-amber-700 uppercase" style={{ fontSize: 8, letterSpacing: '0.10em' }}>
+              Human Review Required
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* 5 verified items */}
+      <div className="flex items-center gap-0 divide-x divide-slate-100" style={{ padding: '20px 24px' }}>
+        {items.map((item, i) => (
+          <div key={i} className={`flex items-start gap-3 ${i > 0 ? 'pl-6' : ''} ${i < items.length - 1 ? 'pr-6' : ''} flex-1`}>
+            <div
+              className="rounded-full bg-emerald-100 flex items-center justify-center shrink-0 mt-0.5"
+              style={{ width: 20, height: 20 }}
+            >
+              <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                <path d="M2 5l2.5 2.5L8.5 2" stroke="#059669" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </div>
+            <p className="font-medium text-slate-700 leading-snug" style={{ fontSize: 12 }}>{item.text}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* Imported AI Packages — shown only when at least one package is present */}
+      {importedPackages.length > 0 && (
+        <div
+          className="border-t border-slate-100 flex items-center gap-4"
+          style={{ padding: '10px 24px', background: 'rgba(248,250,252,0.6)' }}
+        >
+          <span className="font-black text-slate-400 uppercase shrink-0" style={{ fontSize: 8, letterSpacing: '0.12em' }}>
+            Imported AI Packages
+          </span>
+          <div className="flex items-center gap-5">
+            {importedPackages.map((pkg, i) => (
+              <div key={i} className="flex items-center gap-1.5">
+                <div
+                  className="rounded-full bg-blue-100 flex items-center justify-center shrink-0"
+                  style={{ width: 14, height: 14 }}
+                >
+                  <svg width="7" height="7" viewBox="0 0 7 7" fill="none">
+                    <path d="M1 3.5l1.5 1.5L6 1.5" stroke={BLUE} strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </div>
+                <span className="font-semibold text-slate-600" style={{ fontSize: 11 }}>{pkg.label}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════
+   Reserve Card (left column)
+═══════════════════════════════════════════ */
+function ReserveCard({ claim, docPackage }: { claim: Claim; docPackage?: DocumentationPackage | null }) {
+  const delta      = claim.reserve - claim.initialReserve;
+  const pct        = Math.round((delta / claim.initialReserve) * 100);
+  const confidence = computeReserveConfidence(docPackage);
+
+  const hasMpc = !!(docPackage?.confidence && docPackage.confidence > 0);
+
+  const confidenceFactors = [
+    { label: 'Coverage Verification',    checked: true },
+    { label: 'Multi-Party Coordination', checked: hasMpc },
+    { label: 'Auto-Enrichment',          checked: !!docPackage?.enrichment },
+    { label: 'Auto-Alerts',              checked: !!docPackage?.alerts },
+    { label: 'Evidence Grounding',       checked: !!docPackage },
+  ];
+
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-white overflow-hidden" style={{ boxShadow: CARD_SHADOW }}>
+      <SectionHeader
+        icon={<ReserveIcon />}
+        title="Reserve Recommendation"
+        badge={{ label: 'AI Analysed', color: 'blue' }}
+      />
+
+      <div style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: 18 }}>
+        {/* Current vs recommended */}
+        <div className="grid grid-cols-2 gap-4">
+          <div className="rounded-xl bg-slate-50 border border-slate-200" style={{ padding: '14px 16px' }}>
+            <p className="font-black text-slate-400 uppercase mb-2" style={{ fontSize: 8, letterSpacing: '0.14em' }}>
+              Current Reserve
+            </p>
+            <p className="font-black text-[#0f3460] tabular-nums" style={{ fontSize: 22, letterSpacing: '-0.02em', lineHeight: 1 }}>
+              ${claim.initialReserve.toLocaleString()}
+            </p>
+            <p className="font-medium text-slate-400 mt-1" style={{ fontSize: 10 }}>Initial set at FNOL</p>
+          </div>
+          <div
+            className="rounded-xl border"
+            style={{ padding: '14px 16px', background: '#eff6ff', borderColor: '#bfdbfe' }}
+          >
+            <p className="font-black uppercase mb-2" style={{ fontSize: 8, letterSpacing: '0.14em', color: BLUE }}>
+              Recommended Reserve
+            </p>
+            <p className="font-black tabular-nums" style={{ fontSize: 22, letterSpacing: '-0.02em', lineHeight: 1, color: NAVY }}>
+              ${claim.reserve.toLocaleString()}
+            </p>
+            <p className="font-bold mt-1" style={{ fontSize: 10, color: '#d97706' }}>
+              +${delta.toLocaleString()} (+{pct}%)
+            </p>
+          </div>
+        </div>
+
+        {/* Confidence with checklist */}
+        <div>
+          <div className="flex items-center justify-between mb-2">
+            <p className="font-black text-slate-500 uppercase" style={{ fontSize: 8, letterSpacing: '0.14em' }}>
+              AI Confidence
+            </p>
+            <span className="font-black text-[#0f3460]" style={{ fontSize: 13 }}>{confidence}%</span>
+          </div>
+          <div className="rounded-full bg-slate-100 overflow-hidden mb-3" style={{ height: 6 }}>
+            <div
+              className="rounded-full h-full"
+              style={{
+                width: `${confidence}%`,
+                background: `linear-gradient(to right, ${BLUE}, #0f3460)`,
+                transition: 'width 0.8s ease',
+              }}
+            />
+          </div>
+          {/* Factor checklist */}
+          <div className="space-y-1.5">
+            {confidenceFactors.map((factor, i) => (
+              <div key={i} className="flex items-center gap-2">
+                <div
+                  className="rounded-full flex items-center justify-center shrink-0"
+                  style={{
+                    width: 14, height: 14,
+                    background: factor.checked ? '#d1fae5' : '#f1f5f9',
+                    transition: 'background 0.4s',
+                  }}
+                >
+                  {factor.checked ? (
+                    <svg width="7" height="7" viewBox="0 0 7 7" fill="none">
+                      <path d="M1 3.5l1.5 1.5L6 1.5" stroke="#059669" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                  ) : (
+                    <span className="rounded-full bg-slate-300 block" style={{ width: 3, height: 3 }} />
+                  )}
+                </div>
+                <span
+                  className="font-medium"
+                  style={{ fontSize: 10, color: factor.checked ? '#475569' : '#94a3b8' }}
+                >
+                  {factor.label}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Business justification */}
+        <div>
+          <p className="font-black text-slate-400 uppercase mb-2" style={{ fontSize: 8, letterSpacing: '0.14em' }}>
+            Business Justification
+          </p>
+          <div
+            className="rounded-xl border border-slate-200 bg-slate-50 font-medium text-slate-600 leading-relaxed"
+            style={{ fontSize: 12, padding: '12px 14px' }}
+          >
+            {docPackage && (docPackage.participants.length > 0 || docPackage.enrichment || docPackage.alerts)
+              ? <>
+                  {docPackage.assessment.map((a, i) => (
+                    <div key={i} className="flex items-start gap-2 mb-1 last:mb-0">
+                      <span className="shrink-0 text-blue-500 font-black" style={{ fontSize: 11, lineHeight: '18px' }}>·</span>
+                      <span>{a}</span>
+                    </div>
+                  ))}
+                  {docPackage.enrichment && (
+                    <div className="flex items-start gap-2 mt-2 pt-2 border-t border-slate-200">
+                      <span className="shrink-0 text-emerald-600 font-black" style={{ fontSize: 11, lineHeight: '18px' }}>✓</span>
+                      <span>Auto-enrichment confirmed no fraud indicators, validated weather correlation, and supported the revised reserve recommendation.</span>
+                    </div>
+                  )}
+                  {docPackage.alerts && (
+                    <div className="flex items-start gap-2 mt-2 pt-2 border-t border-slate-200">
+                      <span className="shrink-0 text-amber-600 font-black" style={{ fontSize: 11, lineHeight: '18px' }}>✓</span>
+                      <span>Auto-alerts configured: claim notice prepared, future alert scheduled, supervisor notified, SLA monitoring active.</span>
+                    </div>
+                  )}
+                </>
+              : `Field investigation confirmed the extent of ${claim.lossType.toLowerCase()} damage exceeds the initial FNOL estimate. Comparable loss analysis and preliminary contractor estimates support the revised reserve position.`
+            }
+          </div>
+        </div>
+
+        {/* Status */}
+        <div className="flex items-center justify-between pt-2 border-t border-slate-100">
+          <p className="font-semibold text-slate-400" style={{ fontSize: 11 }}>
+            Reserve status
+          </p>
+          <span
+            className="font-black rounded-full border"
+            style={{ fontSize: 9, letterSpacing: '0.06em', padding: '3px 12px', background: '#fffbeb', color: '#b45309', borderColor: '#fde68a' }}
+          >
+            Pending Approval
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════
+   Claim Note Card (right column)
+═══════════════════════════════════════════ */
+function ClaimNoteCard({
+  content, editing, regenerated, onChange,
+}: {
+  content: string; editing: boolean; regenerated: boolean;
+  onChange: (v: string) => void;
+}) {
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-white overflow-hidden flex flex-col" style={{ boxShadow: CARD_SHADOW }}>
+      <div
+        className="flex items-center justify-between border-b border-slate-100 shrink-0"
+        style={{ padding: '14px 20px', background: 'rgba(248,250,252,0.9)' }}
+      >
+        <div className="flex items-center gap-2.5">
+          <div
+            className="rounded-lg flex items-center justify-center shrink-0"
+            style={{ width: 26, height: 26, background: `linear-gradient(135deg, ${BLUE} 0%, ${NAVY} 100%)` }}
+          >
+            <svg width="11" height="11" viewBox="0 0 11 11" fill="none">
+              <rect x="1" y="1" width="9" height="9" rx="1.5" stroke="white" strokeWidth="1.2"/>
+              <path d="M3 4h5M3 6h3" stroke="white" strokeWidth="1" strokeLinecap="round"/>
+            </svg>
+          </div>
+          <p className="font-black text-[#0f3460]" style={{ fontSize: 12 }}>AI-Generated Claim Note</p>
+        </div>
+        <div className="flex items-center gap-2">
+          {regenerated && (
+            <span className="font-bold text-emerald-600 animate-pulse" style={{ fontSize: 10 }}>
+              Regenerated ✓
+            </span>
+          )}
+          <span
+            className={`font-black rounded-full border ${editing ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-amber-50 text-amber-700 border-amber-200'}`}
+            style={{ fontSize: 8, letterSpacing: '0.08em', padding: '2px 10px' }}
+          >
+            {editing ? 'Editing' : 'Draft'}
+          </span>
+        </div>
+      </div>
+
+      <div style={{ padding: '0 20px 20px', flex: 1 }}>
+        <textarea
+          value={content}
+          onChange={e => onChange(e.target.value)}
+          readOnly={!editing}
+          rows={18}
+          className="w-full font-mono leading-relaxed resize-none outline-none transition-all"
+          style={{
+            fontSize: 11,
+            color: editing ? NAVY : '#475569',
+            background: editing ? '#f8fafc' : 'transparent',
+            border: editing ? `1.5px solid ${BLUE}` : 'none',
+            borderRadius: editing ? 12 : 0,
+            padding: editing ? '12px 14px' : '16px 0 0',
+            boxShadow: editing ? `0 0 0 3px rgba(25,118,210,0.08)` : 'none',
+            marginTop: 0,
+          }}
+        />
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════
+   Assignment Email section
+═══════════════════════════════════════════ */
+function EmailSection({ email }: { email: { to: string; subject: string; body: string } }) {
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-white overflow-hidden" style={{ boxShadow: CARD_SHADOW }}>
+      <SectionHeader
+        icon={<MailIcon />}
+        title="Assignment Email"
+        badge={{ label: 'AI Drafted', color: 'blue' }}
+      />
+      <div style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+        {/* To / Subject */}
+        {[
+          { label: 'To', value: email.to },
+          { label: 'Subject', value: email.subject },
+        ].map(f => (
+          <div key={f.label} className="flex items-center gap-4">
+            <span
+              className="font-black text-slate-400 uppercase shrink-0 text-right"
+              style={{ fontSize: 9, letterSpacing: '0.12em', width: 52 }}
+            >
+              {f.label}
+            </span>
+            <input
+              readOnly
+              value={f.value}
+              className="flex-1 font-medium text-[#0f3460] bg-slate-50 border border-slate-200 rounded-xl focus:outline-none"
+              style={{ fontSize: 13, padding: '9px 14px' }}
+            />
+          </div>
+        ))}
+        {/* Body */}
+        <div className="flex gap-4">
+          <span
+            className="font-black text-slate-400 uppercase shrink-0 text-right pt-2.5"
+            style={{ fontSize: 9, letterSpacing: '0.12em', width: 52 }}
+          >
+            Body
+          </span>
+          <textarea
+            readOnly
+            value={email.body}
+            rows={8}
+            className="flex-1 font-medium text-slate-600 bg-slate-50 border border-slate-200 rounded-xl resize-none focus:outline-none leading-relaxed"
+            style={{ fontSize: 12, padding: '12px 14px' }}
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════
+   AI Evidence & Provenance section
+═══════════════════════════════════════════ */
+function EvidenceSection({
+  items,
+}: {
+  items: { label: string; pct: number; detail: string }[];
+}) {
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-white overflow-hidden" style={{ boxShadow: CARD_SHADOW }}>
+      <SectionHeader
+        icon={<EvidenceIcon />}
+        title="AI Evidence & Provenance"
+        badge={{ label: 'AI Sourced', color: 'blue' }}
+      />
+      <div
+        className="gap-0 divide-x divide-slate-100"
+        style={{ padding: '20px 24px', display: 'grid', gridTemplateColumns: `repeat(${items.length}, 1fr)` }}
+      >
+        {items.map((item, i) => (
+          <div key={i} className={`flex flex-col gap-3 ${i > 0 ? 'pl-6' : ''} ${i < items.length - 1 ? 'pr-6' : ''}`}>
+            <div className="flex items-center justify-between">
+              <p className="font-black text-slate-700 leading-tight" style={{ fontSize: 12 }}>{item.label}</p>
+              <span
+                className="font-black tabular-nums"
+                style={{ fontSize: 15, color: item.pct >= 98 ? '#059669' : item.pct >= 96 ? BLUE : '#d97706' }}
+              >
+                {item.pct}%
+              </span>
+            </div>
+            <div className="rounded-full bg-slate-100 overflow-hidden" style={{ height: 5 }}>
+              <div
+                className="rounded-full h-full"
+                style={{
+                  width: `${item.pct}%`,
+                  background: item.pct >= 98 ? '#059669' : item.pct >= 96 ? BLUE : '#d97706',
+                  transition: 'width 1s ease',
+                }}
+              />
+            </div>
+            <p className="font-medium text-slate-500 leading-snug" style={{ fontSize: 11 }}>{item.detail}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════
+   Governance footer
+═══════════════════════════════════════════ */
+function GovernanceFooter({
+  approved, everWritten, editing, regenerated,
+  onEdit, onRegenerate, onApprove, onWrite,
+}: {
+  approved: boolean; everWritten: boolean; editing: boolean; regenerated: boolean;
+  onEdit: () => void; onRegenerate: () => void; onApprove: () => void; onWrite: () => void;
+}) {
+  return (
+    <div
+      className="rounded-2xl border overflow-hidden"
+      style={{
+        boxShadow: CARD_SHADOW,
+        borderColor: approved ? '#bbf7d0' : '#e2e8f0',
+        background: approved ? '#f0fdf4' : '#fff',
+        transition: 'border-color 0.4s, background 0.4s',
+      }}
+    >
+      <div
+        className="flex items-center justify-between border-b"
+        style={{
+          padding: '14px 24px',
+          borderColor: approved ? '#bbf7d0' : '#f1f5f9',
+          background: approved ? 'rgba(240,253,244,0.8)' : 'rgba(248,250,252,0.9)',
+        }}
+      >
+        {/* Status indicators */}
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2">
+            <span className="rounded-full bg-emerald-400 shrink-0" style={{ width: 7, height: 7 }} />
+            <span className="font-black text-emerald-700 uppercase" style={{ fontSize: 10, letterSpacing: '0.10em' }}>
+              AI Draft Ready
+            </span>
+          </div>
+          <div className="w-px h-4 bg-slate-200" />
+          <div className="flex items-center gap-2">
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+              <circle cx="6" cy="6" r="5" stroke={approved ? '#059669' : '#d97706'} strokeWidth="1.3"/>
+              <path d="M4 6l1.5 1.5L8.5 3.5" stroke={approved ? '#059669' : '#d97706'} strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+            <span
+              className="font-black uppercase"
+              style={{ fontSize: 10, letterSpacing: '0.10em', color: approved ? '#059669' : '#b45309' }}
+            >
+              {approved ? 'Approved by Adjuster' : 'Human Review Required'}
+            </span>
+          </div>
+        </div>
+
+        {/* Approved stamp */}
+        {approved && (
+          <div
+            className="flex items-center gap-2 rounded-full bg-emerald-100 border border-emerald-300"
+            style={{ padding: '4px 14px' }}
+          >
+            <svg width="11" height="11" viewBox="0 0 11 11" fill="none">
+              <path d="M2 5.5l2.5 2.5L9 2" stroke="#059669" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+            <span className="font-black text-emerald-700 uppercase" style={{ fontSize: 9, letterSpacing: '0.10em' }}>
+              Adjuster Approved
+            </span>
+          </div>
+        )}
+      </div>
+
+      <div className="flex items-center justify-between" style={{ padding: '16px 24px' }}>
+        <p className="font-medium text-slate-500 leading-snug" style={{ fontSize: 12, maxWidth: 440 }}>
+          Review the AI-generated claim note and email draft above. Edit or regenerate as needed, then approve and write to ClaimCenter.
+        </p>
+
+        <div className="flex items-center gap-3">
+          {/* Edit */}
+          <ActionButton
+            label={editing ? 'Done Editing' : 'Edit'}
+            variant="ghost"
+            icon={<EditIcon />}
+            onClick={onEdit}
+          />
+
+          {/* Regenerate */}
+          <ActionButton
+            label={regenerated ? 'Regenerated' : 'Regenerate'}
+            variant="ghost"
+            icon={<RefreshIcon />}
+            onClick={onRegenerate}
+          />
+
+          <div className="w-px h-7 bg-slate-200" />
+
+          {/* Approve */}
+          <ActionButton
+            label={approved ? 'Approved ✓' : 'Approve'}
+            variant={approved ? 'emerald' : 'primary'}
+            icon={<ApproveIcon />}
+            onClick={onApprove}
+          />
+
+          {/* Write to ClaimCenter */}
+          <ActionButton
+            label={everWritten ? 'Written to ClaimCenter ✓' : 'Write to ClaimCenter'}
+            variant={everWritten ? 'emerald' : 'navy'}
+            icon={<WriteIcon />}
+            disabled={!approved}
+            onClick={onWrite}
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ── Action button ── */
+function ActionButton({
+  label, variant, icon, onClick, disabled,
+}: {
+  label: string; variant: 'ghost' | 'primary' | 'emerald' | 'navy';
+  icon?: React.ReactNode; onClick: () => void; disabled?: boolean;
+}) {
+  const styles: Record<string, React.CSSProperties> = {
+    ghost:   { background: '#fff', color: '#475569', border: '1.5px solid #e2e8f0' },
+    primary: { background: BLUE,  color: '#fff', border: 'none', boxShadow: '0 2px 8px rgba(25,118,210,0.28)' },
+    emerald: { background: '#059669', color: '#fff', border: 'none', boxShadow: '0 2px 8px rgba(5,150,105,0.28)' },
+    navy:    { background: disabled ? '#e2e8f0' : NAVY, color: disabled ? '#94a3b8' : '#fff', border: 'none', boxShadow: disabled ? 'none' : '0 2px 8px rgba(15,52,96,0.28)' },
+  };
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      className="flex items-center gap-2 font-bold rounded-xl transition-all hover:opacity-90 active:scale-[0.97] disabled:cursor-not-allowed"
+      style={{ fontSize: 12, padding: '9px 18px', ...styles[variant] }}
+    >
+      {icon}
+      {label}
+    </button>
+  );
+}
+
+/* ═══════════════════════════════════════════
+   ClaimCenter prototype modal
+═══════════════════════════════════════════ */
+function ClaimCenterModal({ claim, onClose }: { claim: Claim; onClose: () => void }) {
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center"
+      style={{ background: 'rgba(10,20,40,0.55)', backdropFilter: 'blur(4px)' }}
+    >
+      <div
+        className="bg-white flex flex-col overflow-hidden"
+        style={{
+          maxWidth: 520, width: '100%', margin: '0 24px',
+          borderRadius: 20, border: '1px solid rgba(15,52,96,0.10)',
+          boxShadow: '0 24px 60px rgba(15,52,96,0.22), 0 4px 16px rgba(15,52,96,0.10)',
+        }}
+      >
+        {/* Header */}
+        <div className="flex items-center gap-4 border-b border-slate-100" style={{ padding: '22px 28px' }}>
+          <div
+            className="rounded-2xl flex items-center justify-center shrink-0"
+            style={{ width: 44, height: 44, background: `linear-gradient(135deg, ${BLUE} 0%, ${NAVY} 100%)`, boxShadow: '0 3px 10px rgba(25,118,210,0.30)' }}
+          >
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+              <rect x="3" y="2" width="14" height="16" rx="2" stroke="white" strokeWidth="1.6"/>
+              <path d="M6 7h8M6 10h8M6 13h5" stroke="white" strokeWidth="1.3" strokeLinecap="round"/>
+            </svg>
+          </div>
+          <div>
+            <p className="font-black text-[#0f3460] leading-none" style={{ fontSize: 16 }}>
+              Write to ClaimCenter
+            </p>
+            <p className="font-medium text-slate-400 mt-0.5 leading-none" style={{ fontSize: 12 }}>
+              Prototype Notice
+            </p>
+          </div>
+          <button
+            onClick={onClose}
+            className="ml-auto flex items-center justify-center rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
+            style={{ width: 32, height: 32 }}
+          >
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+              <path d="M2.5 2.5l9 9M11.5 2.5l-9 9" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
+            </svg>
+          </button>
+        </div>
+
+        {/* Body */}
+        <div style={{ padding: '24px 28px' }}>
+          <div
+            className="rounded-2xl border border-emerald-200 bg-emerald-50 flex items-start gap-4 mb-5"
+            style={{ padding: '16px 20px' }}
+          >
+            <div
+              className="rounded-full bg-emerald-200 flex items-center justify-center shrink-0"
+              style={{ width: 28, height: 28 }}
+            >
+              <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
+                <path d="M2 6.5l3.5 3.5L11 3" stroke="#059669" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </div>
+            <div>
+              <p className="font-black text-emerald-800 leading-tight" style={{ fontSize: 13 }}>
+                Documentation approved and ready for submission
+              </p>
+              <p className="font-medium text-emerald-600 mt-1 leading-snug" style={{ fontSize: 12 }}>
+                Claim {claim.id} · {claim.claimantName}
+              </p>
+            </div>
+          </div>
+
+          <div className="space-y-3">
+            <p className="font-semibold text-slate-700 leading-relaxed" style={{ fontSize: 13 }}>
+              In production, this action would invoke the{' '}
+              <span className="font-black text-[#0f3460]">Guidewire ClaimCenter API</span>{' '}
+              to write the following directly to the claim record:
+            </p>
+            <ul className="space-y-2">
+              {[
+                `Claim note appended to ${claim.id}`,
+                `Reserve updated to $${claim.reserve.toLocaleString()}`,
+                'Assignment email queued for dispatch',
+                'Claim status updated: Ready for Adjuster Action',
+              ].map((item, i) => (
+                <li key={i} className="flex items-start gap-2.5">
+                  <div className="rounded-full bg-slate-200 flex items-center justify-center shrink-0 mt-0.5" style={{ width: 16, height: 16 }}>
+                    <span className="font-black text-slate-500" style={{ fontSize: 8 }}>{i + 1}</span>
+                  </div>
+                  <span className="font-medium text-slate-600" style={{ fontSize: 12 }}>{item}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          <div
+            className="flex items-center gap-2 mt-5 rounded-xl bg-slate-50 border border-slate-200"
+            style={{ padding: '10px 14px' }}
+          >
+            <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
+              <circle cx="6.5" cy="6.5" r="5.5" stroke="#94a3b8" strokeWidth="1.2"/>
+              <path d="M6.5 4v3.5" stroke="#94a3b8" strokeWidth="1.2" strokeLinecap="round"/>
+              <circle cx="6.5" cy="9.5" r="0.5" fill="#94a3b8"/>
+            </svg>
+            <span className="font-medium text-slate-400" style={{ fontSize: 11 }}>
+              No data is written in this prototype — demo mode only
+            </span>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="border-t border-slate-100 flex justify-end" style={{ padding: '16px 28px' }}>
+          <button
+            onClick={onClose}
+            className="font-black text-white rounded-xl transition-all hover:opacity-90 active:scale-[0.97]"
+            style={{ fontSize: 13, padding: '10px 28px', background: NAVY, boxShadow: '0 2px 10px rgba(15,52,96,0.28)' }}
+          >
+            Got it
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════
+   Shared sub-components
+═══════════════════════════════════════════ */
+function SectionHeader({
+  icon, title, badge,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  badge?: { label: string; color: 'blue' | 'emerald' | 'amber' };
+}) {
+  const badgeStyle = {
+    blue:    { bg: '#eff6ff', text: '#1d4ed8', border: '#bfdbfe' },
+    emerald: { bg: '#f0fdf4', text: '#15803d', border: '#bbf7d0' },
+    amber:   { bg: '#fffbeb', text: '#b45309', border: '#fde68a' },
+  }[badge?.color ?? 'blue'];
+
+  return (
+    <div
+      className="flex items-center gap-3 border-b border-slate-100"
+      style={{ padding: '14px 24px', background: 'rgba(248,250,252,0.9)' }}
+    >
+      <div
+        className="rounded-xl flex items-center justify-center shrink-0"
+        style={{ width: 28, height: 28, background: `linear-gradient(135deg, ${BLUE} 0%, ${NAVY} 100%)` }}
+      >
+        {icon}
+      </div>
+      <p className="font-black text-[#0f3460]" style={{ fontSize: 13 }}>{title}</p>
+      {badge && (
+        <span
+          className="font-bold rounded-full border ml-auto"
+          style={{ fontSize: 8, letterSpacing: '0.10em', padding: '2px 10px', background: badgeStyle.bg, color: badgeStyle.text, borderColor: badgeStyle.border }}
+        >
+          {badge.label}
+        </span>
+      )}
+    </div>
+  );
+}
+
+/* ── SVG icons ── */
+function ReserveIcon() {
+  return (
+    <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
+      <path d="M2 10V5l4.5-3 4.5 3v5H8V7.5H5V10H2z" stroke="white" strokeWidth="1.2" strokeLinejoin="round"/>
+    </svg>
+  );
+}
+function MailIcon() {
+  return (
+    <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
+      <rect x="1.5" y="3" width="10" height="7.5" rx="1.5" stroke="white" strokeWidth="1.2"/>
+      <path d="M1.5 5l5 3.5 5-3.5" stroke="white" strokeWidth="1.2" strokeLinecap="round"/>
+    </svg>
+  );
+}
+function EvidenceIcon() {
+  return (
+    <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
+      <circle cx="5.5" cy="5.5" r="4" stroke="white" strokeWidth="1.2"/>
+      <path d="M8.5 8.5L12 12" stroke="white" strokeWidth="1.4" strokeLinecap="round"/>
+    </svg>
+  );
+}
+function EditIcon() {
+  return (
+    <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+      <path d="M8 1.5l2.5 2.5L4 10.5H1.5V8L8 1.5z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round"/>
+    </svg>
+  );
+}
+function RefreshIcon() {
+  return (
+    <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+      <path d="M1.5 6A4.5 4.5 0 006 10.5a4.5 4.5 0 004.4-3.6" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
+      <path d="M10.5 6A4.5 4.5 0 006 1.5a4.5 4.5 0 00-4.4 3.6" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
+      <path d="M8.5 5.5l2-2 2 2" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/>
+    </svg>
+  );
+}
+function ApproveIcon() {
+  return (
+    <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+      <path d="M2 6l2.5 2.5L10 3" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+    </svg>
+  );
+}
+function WriteIcon() {
+  return (
+    <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+      <rect x="1.5" y="1.5" width="9" height="9" rx="1.5" stroke="currentColor" strokeWidth="1.2"/>
+      <path d="M4 6h4M4 4h2M4 8h3" stroke="currentColor" strokeWidth="1" strokeLinecap="round"/>
+    </svg>
+  );
+}
