@@ -520,7 +520,8 @@ export default function PostFnolCoverageJourneyPage({ claim, onBack, onViewDocum
           capFlags={capFlags}
           workflowRun={workflowRun}
           claim={claim}
-          approvalState={executionMode === 'autonomous' ? approvalState : undefined}
+          approvalState={approvalState}
+          showReviewSections={executionMode === 'autonomous'}
           approvalCommitStep={executionMode === 'autonomous' ? approvalCommitStep : 0}
           onApprove={handleApprove}
           onRequestChanges={handleRequestChanges}
@@ -1551,12 +1552,35 @@ function ReviewSection({
   );
 }
 
+/* Shared helper — derives Package Status label from workflow lifecycle state */
+function packageStatusLabel(
+  isComplete: boolean,
+  approvalState: ApprovalState | undefined,
+  isManualMode: boolean
+): { text: string; color: string } {
+  if (!isComplete) return { text: 'Governed Claim Package Being Assembled', color: '#94a3b8' };
+  switch (approvalState) {
+    case 'approved':
+    case 'approving':
+      return { text: 'Governed Claim Package Approved · Enterprise Commit Completed', color: '#059669' };
+    case 'returned':
+      return { text: 'Governed Claim Package Returned · Awaiting Revision', color: '#b45309' };
+    case 'rejected':
+      return { text: 'Governed Claim Package Rejected · Workflow Closed', color: '#dc2626' };
+    default:
+      return isManualMode
+        ? { text: 'Governed Claim Package Ready · Awaiting Documentation Review', color: '#b45309' }
+        : { text: 'Governed Claim Package Ready · Awaiting Human Approval', color: '#b45309' };
+  }
+}
+
 function AiPackageStatusPanel({
   isComplete,
   capFlags,
   workflowRun,
   claim,
   approvalState,
+  showReviewSections,
   approvalCommitStep,
   onApprove,
   onRequestChanges,
@@ -1567,6 +1591,7 @@ function AiPackageStatusPanel({
   workflowRun?: WorkflowRunResult | null;
   claim?: import('../types').Claim;
   approvalState?: ApprovalState;
+  showReviewSections?: boolean;
   approvalCommitStep?: number;
   onApprove?: () => void;
   onRequestChanges?: () => void;
@@ -1582,7 +1607,7 @@ function AiPackageStatusPanel({
     });
   }
 
-  const isAutonomousMode = approvalState !== undefined;
+  const isAutonomousMode = showReviewSections ?? false;
 
   const claimantName = claim?.claimantName ?? 'Claimant';
   const policyNumber  = claim?.policyNumber  ?? '—';
@@ -1782,10 +1807,15 @@ function AiPackageStatusPanel({
       {/* ── Manual mode: bottom status line ── */}
       {isComplete && !isAutonomousMode && (
         <div className="border-t border-slate-100" style={{ padding: '8px 20px' }}>
-          <p className="font-semibold text-slate-500" style={{ fontSize: 10 }}>
-            Package Status:{' '}
-            <span className="text-amber-600 font-black">Governed Claim Package Ready · Awaiting Documentation Review</span>
-          </p>
+          {(() => {
+            const { text, color } = packageStatusLabel(isComplete, approvalState, true);
+            return (
+              <p className="font-semibold text-slate-500" style={{ fontSize: 10 }}>
+                Package Status:{' '}
+                <span className="font-black" style={{ color }}>{text}</span>
+              </p>
+            );
+          })()}
           {workflowRun && (
             <p className="font-medium text-slate-400 mt-1" style={{ fontSize: 9 }}>
               Backend Run ID:{' '}
