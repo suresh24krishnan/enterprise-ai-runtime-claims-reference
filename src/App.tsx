@@ -121,10 +121,14 @@ export default function App() {
             [activeClaim.id]: { ...prev[activeClaim.id], documentationApproved: true, claimCenterWritten: prev[activeClaim.id]?.claimCenterWritten ?? false },
           }))}
           claimCenterWritten={claimWorkflowState[activeClaim.id]?.claimCenterWritten}
-          onClaimCenterWritten={() => setClaimWorkflowState(prev => ({
-            ...prev,
-            [activeClaim.id]: { documentationApproved: true, claimCenterWritten: true },
-          }))}
+          onClaimCenterWritten={() => {
+            const claimId = activeClaim.id;
+            setClaimWorkflowState(prev => ({
+              ...prev,
+              [claimId]: { documentationApproved: true, claimCenterWritten: true },
+            }));
+            setWorkflowStatusMap(prev => ({ ...prev, [claimId]: 'Completed' }));
+          }}
         />
       ) : screen === 'multiparty' ? (
         <MultiPartyConversationPage
@@ -186,6 +190,7 @@ export default function App() {
           capFlags={capState}
           workflowRun={workflowRunMap[activeClaim.id] ?? null}
           backendStatus={backendStatusMap[activeClaim.id] ?? null}
+          claimCenterWritten={claimWorkflowState[activeClaim.id]?.claimCenterWritten}
           onWorkflowStatus={(status) => {
             const claimId = activeClaim.id;
             setWorkflowStatusMap(prev => ({ ...prev, [claimId]: status }));

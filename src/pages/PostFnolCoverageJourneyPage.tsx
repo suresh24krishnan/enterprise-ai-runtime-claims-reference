@@ -22,6 +22,7 @@ interface Props {
   workflowRun?: WorkflowRunResult | null;
   backendStatus?: 'loading' | 'connected' | 'prototype' | null;
   onWorkflowStatus?: (status: ClaimStatus) => void;
+  claimCenterWritten?: boolean;
 }
 
 type ApprovalState = 'awaiting' | 'approving' | 'approved' | 'returned' | 'rejected';
@@ -141,7 +142,7 @@ const MANUAL_TASKS = [
 /* Final elapsed when all steps complete: used as initial value on subsequent visits */
 const FINAL_ELAPSED = INITIAL_DELAY + 5 * STEP_DELAY;
 
-export default function PostFnolCoverageJourneyPage({ claim, onBack, onViewDocumentation, onViewMultiParty, onViewEnrichments, onViewAlerts, hasAnimated, onAnimationComplete, capFlags, workflowRun, backendStatus, onWorkflowStatus }: Props) {
+export default function PostFnolCoverageJourneyPage({ claim, onBack, onViewDocumentation, onViewMultiParty, onViewEnrichments, onViewAlerts, hasAnimated, onAnimationComplete, capFlags, workflowRun, backendStatus, onWorkflowStatus, claimCenterWritten }: Props) {
   const steps = buildSteps(claim);
 
   /*
@@ -212,6 +213,14 @@ export default function PostFnolCoverageJourneyPage({ claim, onBack, onViewDocum
     const t = setInterval(() => setAutonomousElapsed(s => s + 100), 100);
     return () => clearInterval(t);
   }, [autonomousStep]);
+
+  /* Manual mode: advance to COMPLETED when ClaimCenter write-back completes */
+  useEffect(() => {
+    if (claimCenterWritten && executionMode === 'manual' && workflowStage === 'DOCUMENTATION_REVIEW') {
+      setWorkflowStage('COMPLETED');
+      onWorkflowStatus?.('Completed');
+    }
+  }, [claimCenterWritten]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /* Single Start Workflow button — kicks off whichever mode is selected */
   function handleStartWorkflow() {
@@ -513,7 +522,7 @@ export default function PostFnolCoverageJourneyPage({ claim, onBack, onViewDocum
                 : false;
               const ctaLabel =
                 idx === 1 ? (capFlags.multiPartyAdded ? 'Added to Documentation' : 'Open Multi-Party Conversations')
-                : idx === 2 ? (capFlags.documentationVisited ? 'Ready for Review' : undefined)
+                : idx === 2 ? (workflowStage === 'COMPLETED' ? 'Committed to ClaimCenter' : capFlags.documentationVisited ? 'Ready for Review' : undefined)
                 : idx === 3 ? (capFlags.enrichmentAdded ? 'Added to Documentation' : 'Open Auto-Enrichments')
                 : idx === 4 ? (capFlags.alertsAdded ? 'Added to Documentation' : 'Open Auto-Alerts')
                 : undefined;
