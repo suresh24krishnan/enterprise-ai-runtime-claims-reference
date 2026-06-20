@@ -352,10 +352,6 @@ export default function PostFnolCoverageJourneyPage({ claim, onBack, onViewDocum
             autonomousStep={autonomousStep}
             onStart={startAutonomous}
             approvalState={approvalState}
-            approvalCommitStep={approvalCommitStep}
-            onApprove={handleApprove}
-            onRequestChanges={() => setApprovalState('returned')}
-            onReject={() => setApprovalState('rejected')}
           />
         </div>
       )}
@@ -453,7 +449,12 @@ export default function PostFnolCoverageJourneyPage({ claim, onBack, onViewDocum
           isComplete={effectiveIsComplete}
           capFlags={capFlags}
           workflowRun={workflowRun}
+          claim={claim}
           approvalState={executionMode === 'autonomous' ? approvalState : undefined}
+          approvalCommitStep={executionMode === 'autonomous' ? approvalCommitStep : 0}
+          onApprove={handleApprove}
+          onRequestChanges={() => setApprovalState('returned')}
+          onReject={() => setApprovalState('rejected')}
         />
         <ArchitectureProofPanel
           backendStatus={backendStatus}
@@ -620,18 +621,10 @@ function AutonomousExecutionPanel({
   autonomousStep,
   onStart,
   approvalState,
-  approvalCommitStep,
-  onApprove,
-  onRequestChanges,
-  onReject,
 }: {
   autonomousStep: number;
   onStart: () => void;
   approvalState: ApprovalState;
-  approvalCommitStep: number;
-  onApprove: () => void;
-  onRequestChanges: () => void;
-  onReject: () => void;
 }) {
   const isRunning = autonomousStep > 0 && autonomousStep < 6;
   const isDone    = autonomousStep >= 6;
@@ -781,15 +774,81 @@ function AutonomousExecutionPanel({
                 );
               })}
             </div>
-            {/* Human Approval Gate */}
+            {/* Execution status banner */}
             {isDone && (
-              <HumanApprovalGate
-                approvalState={approvalState}
-                approvalCommitStep={approvalCommitStep}
-                onApprove={onApprove}
-                onRequestChanges={onRequestChanges}
-                onReject={onReject}
-              />
+              <div
+                className="rounded-xl border flex items-center gap-4"
+                style={{
+                  padding: '14px 20px',
+                  background: approvalState === 'approved' ? '#f0fdf4' : approvalState === 'rejected' ? '#fef2f2' : approvalState === 'returned' ? '#fffbeb' : '#f0fdf4',
+                  borderColor: approvalState === 'approved' ? '#bbf7d0' : approvalState === 'rejected' ? '#fecaca' : approvalState === 'returned' ? '#fde68a' : '#bbf7d0',
+                }}
+              >
+                <div
+                  className="rounded-full flex items-center justify-center shrink-0"
+                  style={{
+                    width: 38, height: 38,
+                    background: approvalState === 'approved' ? '#d1fae5' : approvalState === 'rejected' ? '#fee2e2' : approvalState === 'returned' ? '#fef3c7' : '#d1fae5',
+                    border: `2px solid ${approvalState === 'approved' ? '#6ee7b7' : approvalState === 'rejected' ? '#fca5a5' : approvalState === 'returned' ? '#fde68a' : '#6ee7b7'}`,
+                  }}
+                >
+                  {approvalState === 'approved' ? (
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                      <path d="M3 8l3.5 3.5L13 4.5" stroke="#059669" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                  ) : approvalState === 'rejected' ? (
+                    <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                      <path d="M4 4l6 6M10 4l-6 6" stroke="#dc2626" strokeWidth="2" strokeLinecap="round"/>
+                    </svg>
+                  ) : approvalState === 'returned' ? (
+                    <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                      <path d="M7 3v4M7 9v1.5" stroke="#b45309" strokeWidth="2" strokeLinecap="round"/>
+                    </svg>
+                  ) : (
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                      <path d="M3 8l3.5 3.5L13 4.5" stroke="#059669" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                  )}
+                </div>
+                <div className="flex-1">
+                  <p
+                    className="font-black leading-none"
+                    style={{
+                      fontSize: 13,
+                      color: approvalState === 'approved' ? '#065f46' : approvalState === 'rejected' ? '#7f1d1d' : approvalState === 'returned' ? '#78350f' : '#065f46',
+                    }}
+                  >
+                    {approvalState === 'approved' ? 'Workflow Complete — Enterprise Systems Updated' :
+                     approvalState === 'rejected' ? 'Execution Closed — Package Rejected' :
+                     approvalState === 'returned' ? 'Returned for Review — No Systems Written' :
+                     'Governed Claim Package Ready'}
+                  </p>
+                  <p
+                    className="font-semibold mt-0.5 leading-snug"
+                    style={{
+                      fontSize: 10,
+                      color: approvalState === 'approved' ? '#059669' : approvalState === 'rejected' ? '#dc2626' : approvalState === 'returned' ? '#b45309' : '#059669',
+                    }}
+                  >
+                    {approvalState === 'approved' ? 'Human approval recorded · Audit trail published · All enterprise actions committed' :
+                     approvalState === 'rejected' ? 'No enterprise systems written · Audit record retained' :
+                     approvalState === 'returned' ? 'Package returned to AI Runtime · Adjuster changes requested' :
+                     approvalState === 'approving' ? 'Committing to enterprise systems…' :
+                     '5 capabilities executed · Review the Governed Claim Package below before approving'}
+                  </p>
+                </div>
+                <span
+                  className="font-black rounded-full border shrink-0"
+                  style={{
+                    fontSize: 8, letterSpacing: '0.10em', padding: '3px 12px',
+                    color: approvalState === 'approved' ? '#059669' : approvalState === 'rejected' ? '#dc2626' : approvalState === 'returned' ? '#b45309' : '#b45309',
+                    background: approvalState === 'approved' ? '#d1fae5' : approvalState === 'rejected' ? '#fee2e2' : approvalState === 'returned' ? '#fef3c7' : '#fef3c7',
+                    borderColor: approvalState === 'approved' ? '#6ee7b7' : approvalState === 'rejected' ? '#fca5a5' : approvalState === 'returned' ? '#fde68a' : '#fde68a',
+                  }}
+                >
+                  {approvalState === 'approved' ? 'APPROVED' : approvalState === 'rejected' ? 'REJECTED' : approvalState === 'returned' ? 'RETURNED' : 'PENDING APPROVAL'}
+                </span>
+              </div>
             )}
           </div>
         )}
@@ -1348,7 +1407,189 @@ function CheckRow({ done, text }: { done: boolean; text: string }) {
 /* ═══════════════════════════════════════════
    AI Package Status panel
 ═══════════════════════════════════════════ */
-function AiPackageStatusPanel({ isComplete, capFlags, workflowRun, approvalState }: { isComplete: boolean; capFlags: CapabilityFlags; workflowRun?: WorkflowRunResult | null; approvalState?: ApprovalState }) {
+function ReviewSection({
+  title,
+  rows,
+  expanded,
+  onToggle,
+}: {
+  title: string;
+  rows: { label: string; value: string; highlight?: 'green' | 'amber' | 'blue' | 'red' }[];
+  expanded: boolean;
+  onToggle: () => void;
+}) {
+  return (
+    <div className="border border-slate-100 rounded-xl overflow-hidden">
+      <button
+        onClick={onToggle}
+        className="w-full flex items-center justify-between gap-3 transition-colors hover:bg-slate-50"
+        style={{ padding: '9px 14px', background: expanded ? '#f8fafc' : 'transparent', border: 'none', cursor: 'pointer', textAlign: 'left' }}
+      >
+        <div className="flex items-center gap-2.5">
+          <div className="rounded-full bg-emerald-100 flex items-center justify-center shrink-0" style={{ width: 15, height: 15 }}>
+            <svg width="8" height="8" viewBox="0 0 8 8" fill="none">
+              <path d="M1.5 4l1.5 1.5L6.5 2" stroke="#059669" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          </div>
+          <span className="font-semibold text-slate-700 leading-none" style={{ fontSize: 11 }}>{title}</span>
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          <span className="font-bold uppercase" style={{ fontSize: 8, letterSpacing: '0.08em', color: expanded ? BLUE : '#94a3b8' }}>
+            {expanded ? '▲ Hide' : '▼ Review'}
+          </span>
+        </div>
+      </button>
+      {expanded && (
+        <div className="border-t border-slate-100" style={{ padding: '10px 14px 12px', background: '#fafbfc' }}>
+          <div className="space-y-2">
+            {rows.map((row, i) => {
+              const valueColor =
+                row.highlight === 'green' ? '#059669' :
+                row.highlight === 'amber' ? '#b45309' :
+                row.highlight === 'blue'  ? BLUE :
+                row.highlight === 'red'   ? '#dc2626' : '#374151';
+              const valueBg =
+                row.highlight === 'green' ? '#f0fdf4' :
+                row.highlight === 'amber' ? '#fffbeb' :
+                row.highlight === 'blue'  ? '#eff6ff' :
+                row.highlight === 'red'   ? '#fef2f2' : '#f1f5f9';
+              const valueBorder =
+                row.highlight === 'green' ? '#bbf7d0' :
+                row.highlight === 'amber' ? '#fde68a' :
+                row.highlight === 'blue'  ? '#bfdbfe' :
+                row.highlight === 'red'   ? '#fecaca' : '#e2e8f0';
+              return (
+                <div key={i} className="flex items-start gap-3">
+                  <span className="font-black text-slate-400 shrink-0 uppercase" style={{ fontSize: 8, letterSpacing: '0.06em', paddingTop: 3, minWidth: 110 }}>{row.label}</span>
+                  <span className="font-semibold rounded border leading-snug" style={{ fontSize: 9.5, padding: '2px 7px', color: valueColor, background: valueBg, borderColor: valueBorder }}>
+                    {row.value}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function AiPackageStatusPanel({
+  isComplete,
+  capFlags,
+  workflowRun,
+  claim,
+  approvalState,
+  approvalCommitStep,
+  onApprove,
+  onRequestChanges,
+  onReject,
+}: {
+  isComplete: boolean;
+  capFlags: CapabilityFlags;
+  workflowRun?: WorkflowRunResult | null;
+  claim?: import('../types').Claim;
+  approvalState?: ApprovalState;
+  approvalCommitStep?: number;
+  onApprove?: () => void;
+  onRequestChanges?: () => void;
+  onReject?: () => void;
+}) {
+  const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set());
+
+  function toggleSection(key: string) {
+    setExpandedSections(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key); else next.add(key);
+      return next;
+    });
+  }
+
+  const isAutonomousMode = approvalState !== undefined;
+
+  const claimantName = claim?.claimantName ?? 'Claimant';
+  const policyNumber  = claim?.policyNumber  ?? '—';
+  const lossType      = claim?.lossType      ?? 'Loss';
+  const reserve       = claim?.reserve       ?? 0;
+  const sla           = claim?.slaDaysRemaining ?? 0;
+  const dateOfLoss    = claim?.dateOfLoss    ?? '—';
+
+  const sections = [
+    {
+      key: 'coverage',
+      title: 'Coverage Verification',
+      rows: [
+        { label: 'Policy Number',       value: policyNumber },
+        { label: 'Coverage',            value: lossType },
+        { label: 'Policy Limit',        value: '$500,000' },
+        { label: 'Deductible',          value: '$25,000' },
+        { label: 'Coverage Decision',   value: 'Covered', highlight: 'green' as const },
+        { label: 'Evidence Source',     value: 'PolicyCenter' },
+        { label: 'Verification Status', value: 'Verified', highlight: 'green' as const },
+      ],
+    },
+    {
+      key: 'documentation',
+      title: 'Documentation Package',
+      rows: [
+        { label: 'Executive Summary',      value: `${lossType} loss sustained at ${claimantName}. Coverage confirmed. Reserve recommended at $${reserve.toLocaleString()}.` },
+        { label: 'Date of Loss',           value: dateOfLoss },
+        { label: 'Claim Notes',            value: 'Initial assessment complete. Structural inspection recommended.' },
+        { label: 'Reserve Recommendation', value: `$${reserve.toLocaleString()}`, highlight: 'blue' as const },
+        { label: 'Inspection Rec.',        value: 'Independent adjuster site visit required' },
+        { label: 'Email Draft',            value: 'Adjuster notification drafted — pending send approval', highlight: 'amber' as const },
+        { label: 'Adjuster Notes',         value: 'All documentation aligned with policy terms and loss details.' },
+      ],
+    },
+    {
+      key: 'investigation',
+      title: 'Investigation & Evaluation',
+      rows: [
+        { label: 'Assessment',             value: `Damage consistent with reported ${lossType} event` },
+        { label: 'Potential Exposure',     value: `$${reserve.toLocaleString()}`, highlight: 'blue' as const },
+        { label: 'Specialist Rec.',        value: 'Structural engineer inspection recommended' },
+        { label: 'Comparable Losses',      value: '3 comparable losses analyzed — within expected range' },
+        { label: 'Reasoning Summary',      value: 'Loss causation confirmed. Coverage applies under policy terms. No exclusions identified.' },
+      ],
+    },
+    {
+      key: 'enrichment',
+      title: 'Autonomous Enrichment',
+      rows: [
+        { label: 'Fraud Indicators',   value: 'None detected', highlight: 'green' as const },
+        { label: 'CAT Detection',      value: `CAT event confirmed — ${lossType} regional event`, highlight: 'amber' as const },
+        { label: 'Risk Signals',       value: sla <= 5 ? `SLA at risk — ${sla} days remaining` : `SLA healthy — ${sla} days remaining`, highlight: sla <= 5 ? 'amber' as const : 'green' as const },
+        { label: 'External Data',      value: 'NOAA weather data corroborated. CAT designation applied.' },
+        { label: 'Confidence Score',   value: '94%', highlight: 'green' as const },
+      ],
+    },
+    {
+      key: 'workflow',
+      title: 'Workflow Coordination',
+      rows: [
+        { label: 'Notifications',         value: 'Assignment email drafted — awaiting adjuster approval' },
+        { label: 'Specialist Engagement', value: 'Independent adjuster notified — site visit scheduled' },
+        { label: 'SLA Events',            value: `${sla} days remaining — SLA alert configured` },
+        { label: 'Workflow Actions',       value: 'Claim file updated · Reserve adjusted · Documentation staged' },
+        { label: 'Future Tasks',          value: 'Reserve review in 72 hours · Inspection report due in 5 days' },
+      ],
+    },
+    {
+      key: 'governance',
+      title: 'Governance Evidence',
+      rows: [
+        { label: 'Runtime ID',            value: workflowRun ? workflowRun.runId.slice(0, 12) + '…' : 'qarl-run-mock-001' },
+        { label: 'Supervisor',            value: 'LangGraph Supervisor v2' },
+        { label: 'Capabilities Executed', value: workflowRun ? `${workflowRun.capabilitiesExecuted}` : '5', highlight: 'green' as const },
+        { label: 'Execution Time',        value: workflowRun ? `${(workflowRun.executionTimeMs / 1000).toFixed(1)}s` : '7.2s' },
+        { label: 'Prompt Version',        value: 'qarl-v2.4.1' },
+        { label: 'Evidence Sources',      value: 'PolicyCenter · ClaimCenter · EDW · NOAA' },
+        { label: 'Audit Events',          value: workflowRun ? `${workflowRun.auditTraceCount} recorded` : '14 recorded', highlight: 'green' as const },
+        { label: 'Enterprise Connectors', value: '5 mock contracts active' },
+        { label: 'Approval Required',     value: 'YES', highlight: 'amber' as const },
+      ],
+    },
+  ];
 
   return (
     <div
@@ -1369,29 +1610,66 @@ function AiPackageStatusPanel({ isComplete, capFlags, workflowRun, approvalState
             <path d="M3.5 4.5h5M3.5 6.5h5M3.5 8.5h3" stroke="white" strokeWidth="1" strokeLinecap="round"/>
           </svg>
         </div>
-        <div>
+        <div className="flex-1">
           <p className="font-black text-[#0f3460] leading-none" style={{ fontSize: 12 }}>
             Governed Claim Package
           </p>
           <p className="font-medium text-slate-400 leading-none mt-0.5" style={{ fontSize: 9 }}>
-            AI-assembled package pending adjuster approval
+            {isAutonomousMode ? 'AI-assembled package — expand each section to review before approving' : 'AI-assembled package pending adjuster approval'}
           </p>
         </div>
+        {isComplete && approvalState && (
+          <span
+            className="font-black rounded-full border shrink-0"
+            style={{
+              fontSize: 8, letterSpacing: '0.09em', padding: '3px 10px',
+              color: approvalState === 'approved' ? '#059669' : approvalState === 'rejected' ? '#dc2626' : approvalState === 'returned' ? '#b45309' : '#b45309',
+              background: approvalState === 'approved' ? '#f0fdf4' : approvalState === 'rejected' ? '#fef2f2' : '#fffbeb',
+              borderColor: approvalState === 'approved' ? '#bbf7d0' : approvalState === 'rejected' ? '#fecaca' : '#fde68a',
+            }}
+          >
+            {approvalState === 'approved' ? 'APPROVED' : approvalState === 'rejected' ? 'REJECTED' : approvalState === 'returned' ? 'RETURNED' : approvalState === 'approving' ? 'COMMITTING…' : 'AWAITING REVIEW'}
+          </span>
+        )}
       </div>
 
-      {/* ── Checklist ── */}
-      <div style={{ padding: '14px 20px 12px' }}>
+      {/* ── Body ── */}
+      <div style={{ padding: '14px 20px 0' }}>
         {!isComplete ? (
-          <p className="text-slate-400 font-medium" style={{ fontSize: 11 }}>
-            Assembling governed package…
-          </p>
+          <p className="text-slate-400 font-medium pb-4" style={{ fontSize: 11 }}>Assembling governed package…</p>
+        ) : isAutonomousMode ? (
+          /* ── Autonomous mode: expandable review sections ── */
+          <div>
+            {/* Governance message */}
+            <div className="rounded-lg border border-blue-100 bg-blue-50 flex items-center gap-3 mb-4" style={{ padding: '8px 12px' }}>
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" className="shrink-0">
+                <circle cx="7" cy="7" r="5.5" stroke={BLUE} strokeWidth="1.3"/>
+                <path d="M7 4.5v3.5" stroke={BLUE} strokeWidth="1.4" strokeLinecap="round"/>
+                <circle cx="7" cy="10" r="0.7" fill={BLUE}/>
+              </svg>
+              <p className="font-semibold text-[#1976d2] leading-snug" style={{ fontSize: 9.5 }}>
+                <span className="font-black">AI assembles · Human reviews · Human approves · Enterprise Runtime commits</span>
+              </p>
+            </div>
+
+            {/* Expandable sections */}
+            <div className="space-y-2 mb-4">
+              {sections.map(section => (
+                <ReviewSection
+                  key={section.key}
+                  title={section.title}
+                  rows={section.rows}
+                  expanded={expandedSections.has(section.key)}
+                  onToggle={() => toggleSection(section.key)}
+                />
+              ))}
+            </div>
+          </div>
         ) : (
-          <div className="space-y-2">
-            {/* Always-present rows (base coverage output) */}
+          /* ── Manual mode: simple checklist ── */
+          <div className="space-y-2 pb-3">
             <CheckRow done text="Coverage verification completed" />
             <CheckRow done text="Documentation package prepared" />
-
-            {/* Optional capability rows */}
             <CheckRow
               done={capFlags.multiPartyAdded}
               text={capFlags.multiPartyAdded ? 'Multi-party coordination added' : 'Multi-party coordination available'}
@@ -1411,38 +1689,32 @@ function AiPackageStatusPanel({ isComplete, capFlags, workflowRun, approvalState
         )}
       </div>
 
-      {/* ── Bottom status line ── */}
-      {isComplete && (
-        <div
-          className="border-t border-slate-100"
-          style={{ padding: '8px 20px' }}
-        >
-          {approvalState && (
-            <p className="font-semibold text-slate-500 mb-1" style={{ fontSize: 10 }}>
-              Approval Status:{' '}
-              {approvalState === 'approved' && <span className="text-emerald-600 font-black">Approved · Enterprise systems updated</span>}
-              {approvalState === 'approving' && <span className="text-[#1976d2] font-black animate-pulse">Committing to enterprise systems…</span>}
-              {approvalState === 'returned' && <span className="text-amber-600 font-black">Returned for Review · No systems written</span>}
-              {approvalState === 'rejected' && <span className="text-red-600 font-black">Rejected · Execution closed</span>}
-              {approvalState === 'awaiting' && <span className="text-amber-600 font-black">Pending Adjuster Decision</span>}
-            </p>
-          )}
+      {/* ── Autonomous mode: Human Approval Gate at bottom ── */}
+      {isComplete && isAutonomousMode && onApprove && onRequestChanges && onReject && (
+        <div className="border-t border-slate-100" style={{ padding: '0 20px 20px' }}>
+          <HumanApprovalGate
+            approvalState={approvalState!}
+            approvalCommitStep={approvalCommitStep ?? 0}
+            onApprove={onApprove}
+            onRequestChanges={onRequestChanges}
+            onReject={onReject}
+          />
+        </div>
+      )}
+
+      {/* ── Manual mode: bottom status line ── */}
+      {isComplete && !isAutonomousMode && (
+        <div className="border-t border-slate-100" style={{ padding: '8px 20px' }}>
           <p className="font-semibold text-slate-500" style={{ fontSize: 10 }}>
             Package Status:{' '}
-            <span className={approvalState === 'approved' ? 'text-emerald-600 font-black' : 'text-amber-600 font-black'}>
-              {approvalState === 'approved' ? 'Workflow Complete' : 'Governed Claim Package Ready · Awaiting Human Approval'}
-            </span>
+            <span className="text-amber-600 font-black">Governed Claim Package Ready · Awaiting Human Approval</span>
           </p>
           {workflowRun && (
             <p className="font-medium text-slate-400 mt-1" style={{ fontSize: 9 }}>
               Backend Run ID:{' '}
-              <span className="font-mono text-slate-400" style={{ fontSize: 8 }}>
-                {workflowRun.runId.slice(0, 8)}…
-              </span>
+              <span className="font-mono text-slate-400" style={{ fontSize: 8 }}>{workflowRun.runId.slice(0, 8)}…</span>
               {' · '}
-              <span className="text-slate-400">
-                {workflowRun.auditTraceCount} audit events
-              </span>
+              <span className="text-slate-400">{workflowRun.auditTraceCount} audit events</span>
             </p>
           )}
         </div>
