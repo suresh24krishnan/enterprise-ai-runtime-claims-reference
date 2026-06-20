@@ -63,9 +63,9 @@ function buildSteps(claim: Claim) {
     },
     {
       num: 3,
-      title: 'Interactive Documentation',
+      title: 'Adaptive Documentation Orchestration',
       icon: <WandIcon />,
-      description: 'Capture quality documentation and receive immediate validation.',
+      description: 'QARL autonomously orchestrates documentation capture, validation, and structured note preparation.',
       prompt: 'Adjuster: "Review and confirm reserve change"',
       details: [
         { label: 'Reserve Review', value: 'Preliminary Agent Report' },
@@ -76,9 +76,9 @@ function buildSteps(claim: Claim) {
     },
     {
       num: 4,
-      title: 'Auto-Enrichments',
+      title: 'Autonomous Enrichment',
       icon: <TargetIcon />,
-      description: 'Leverage fraud indicator scores to automatically identify red flags.',
+      description: 'QARL autonomously queries fraud indicators, comparable losses, and risk signals to enrich the claim profile.',
       prompt: 'Adjuster: "Identify if any fraud potential"',
       details: [
         { label: 'ROM Report', value: 'Rough Order of Magnitude' },
@@ -89,9 +89,9 @@ function buildSteps(claim: Claim) {
     },
     {
       num: 5,
-      title: 'Auto-Alerts',
+      title: 'Proactive Workflow Coordination',
       icon: <RocketIcon />,
-      description: 'Note any important updates and proactively engage or update specialists.',
+      description: 'QARL proactively coordinates specialist updates, SLA alerts, and workflow handoffs without adjuster intervention.',
       prompt: 'Adjuster: "Email agent informing if any updates"',
       details: [
         { label: 'Claim file', value: 'Create a notice and future alert' },
@@ -108,9 +108,9 @@ const STAGE_LABELS = [
   'Initializing',
   'Coverage Confirmation',
   'Investigation & Evaluation',
-  'Documentation & Notes',
-  'Claims Profile Enrichment',
-  'Communication',
+  'Adaptive Documentation Orchestration',
+  'Autonomous Enrichment',
+  'Proactive Workflow Coordination',
   'Complete',
 ];
 
@@ -166,6 +166,30 @@ export default function PostFnolCoverageJourneyPage({ claim, onBack, onViewDocum
 
   const completedCount = Math.max(0, activeStep - 1);
   const isComplete = activeStep >= 6;
+
+  /* ── Execution mode ── */
+  const [executionMode, setExecutionMode] = useState<'manual' | 'autonomous'>('manual');
+  const [autonomousStep, setAutonomousStep] = useState(0);
+  const [autonomousElapsed, setAutonomousElapsed] = useState(0);
+
+  function startAutonomous() {
+    setAutonomousStep(1);
+    setAutonomousElapsed(0);
+    for (let i = 2; i <= 6; i++) {
+      setTimeout(() => setAutonomousStep(i), (i - 1) * 1400);
+    }
+  }
+
+  useEffect(() => {
+    if (autonomousStep === 0 || autonomousStep >= 6) return;
+    const t = setInterval(() => setAutonomousElapsed(s => s + 100), 100);
+    return () => clearInterval(t);
+  }, [autonomousStep]);
+
+  const effectiveActiveStep     = executionMode === 'autonomous' ? autonomousStep : activeStep;
+  const effectiveCompletedCount = Math.max(0, effectiveActiveStep - 1);
+  const effectiveIsComplete     = effectiveActiveStep >= 6;
+  const effectiveElapsed        = executionMode === 'autonomous' ? autonomousElapsed : elapsed;
 
   return (
     <div className="flex flex-col flex-1 min-h-0 overflow-y-auto" style={{ background: '#f1f5f9' }}>
@@ -245,50 +269,73 @@ export default function PostFnolCoverageJourneyPage({ claim, onBack, onViewDocum
         </div>
       </div>
 
-      {/* ── Execution mode banner ── */}
+      {/* ── Execution mode selector ── */}
       <div
-        className="shrink-0 flex items-center gap-4 border-b border-blue-100"
-        style={{ background: '#eff6ff', padding: '9px 40px' }}
+        className="shrink-0 border-b border-slate-200"
+        style={{ background: '#fff', padding: '10px 40px' }}
       >
-        <div className="flex items-center gap-2 shrink-0">
-          <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-            <circle cx="6" cy="6" r="5" stroke="#1976d2" strokeWidth="1.2"/>
-            <path d="M6 3.5v3M6 8v.5" stroke="#1976d2" strokeWidth="1.2" strokeLinecap="round"/>
-          </svg>
-          <span className="font-black text-[#1976d2] uppercase" style={{ fontSize: 9, letterSpacing: '0.14em' }}>
-            Execution Mode
-          </span>
-        </div>
-        <span className="font-medium text-blue-700" style={{ fontSize: 11 }}>
-          Manual Guided Review is available. QARL Autonomous Workflow can orchestrate the same capabilities under supervision.
-        </span>
-        <div className="flex items-center gap-2 ml-auto shrink-0">
-          <span
-            className="font-black rounded-full border border-blue-300 bg-white text-[#1976d2]"
-            style={{ fontSize: 8, letterSpacing: '0.08em', padding: '3px 10px' }}
+        <div className="flex items-center gap-5">
+          <div>
+            <p className="font-black uppercase" style={{ fontSize: 8, letterSpacing: '0.14em', color: BLUE }}>
+              Execution Mode
+            </p>
+            <p className="font-medium text-slate-400" style={{ fontSize: 10 }}>
+              Choose how this claim is processed
+            </p>
+          </div>
+          <div
+            className="flex items-center rounded-xl border border-slate-200 bg-slate-50"
+            style={{ padding: 4, gap: 4 }}
           >
-            MANUAL GUIDED REVIEW
-          </span>
-          <span
-            className="font-semibold rounded-full border border-blue-200 text-blue-500"
-            style={{ fontSize: 8, letterSpacing: '0.06em', padding: '3px 10px', background: 'rgba(25,118,210,0.06)' }}
-          >
-            Autonomous Workflow Available
-          </span>
+            <button
+              onClick={() => setExecutionMode('manual')}
+              style={{
+                fontSize: 9, letterSpacing: '0.10em', padding: '7px 16px',
+                background: executionMode === 'manual' ? BLUE : 'transparent',
+                color: executionMode === 'manual' ? '#fff' : '#64748b',
+                boxShadow: executionMode === 'manual' ? '0 2px 6px rgba(25,118,210,0.25)' : 'none',
+                border: 'none', cursor: 'pointer', borderRadius: 8,
+                fontWeight: 900, textTransform: 'uppercase' as const,
+                transition: 'all 0.18s ease',
+              }}
+            >
+              Manual Guided Review
+            </button>
+            <button
+              onClick={() => setExecutionMode('autonomous')}
+              style={{
+                fontSize: 9, letterSpacing: '0.10em', padding: '7px 16px',
+                background: executionMode === 'autonomous' ? BLUE : 'transparent',
+                color: executionMode === 'autonomous' ? '#fff' : '#64748b',
+                boxShadow: executionMode === 'autonomous' ? '0 2px 6px rgba(25,118,210,0.25)' : 'none',
+                border: 'none', cursor: 'pointer', borderRadius: 8,
+                fontWeight: 900, textTransform: 'uppercase' as const,
+                transition: 'all 0.18s ease',
+              }}
+            >
+              Supervised Autonomous Execution
+            </button>
+          </div>
         </div>
       </div>
 
       {/* ── Orchestration status strip ── */}
       <OrchestrationStrip
-        activeStep={activeStep}
-        completedCount={completedCount}
-        elapsed={elapsed}
+        activeStep={effectiveActiveStep}
+        completedCount={effectiveCompletedCount}
+        elapsed={effectiveElapsed}
         claim={claim}
-        isComplete={isComplete}
+        isComplete={effectiveIsComplete}
         workflowRun={workflowRun}
       />
 
       {/* ── Journey canvas ── */}
+      {executionMode === 'autonomous' && (
+        <div style={{ padding: '28px 40px 0' }}>
+          <AutonomousExecutionPanel autonomousStep={autonomousStep} onStart={startAutonomous} />
+        </div>
+      )}
+      {executionMode === 'manual' && (
       <div style={{ padding: '28px 40px 0' }}>
 
         {/* Section label row */}
@@ -374,15 +421,19 @@ export default function PostFnolCoverageJourneyPage({ claim, onBack, onViewDocum
           </div>
         </div>
       </div>
+      )}
 
-      {/* ── Three-column row: system activity + architecture proof + manual elimination ── */}
+      {/* ── Three-column row ── */}
       <div className="grid grid-cols-3 gap-5" style={{ padding: '24px 40px 0' }}>
-        <AiPackageStatusPanel isComplete={isComplete} capFlags={capFlags} workflowRun={workflowRun} />
+        <AiPackageStatusPanel isComplete={effectiveIsComplete} capFlags={capFlags} workflowRun={workflowRun} />
         <ArchitectureProofPanel backendStatus={backendStatus} workflowRun={workflowRun} />
-        <ManualEliminationBanner isComplete={isComplete} />
+        <ManualEliminationBanner
+          isComplete={effectiveIsComplete}
+          autonomousStep={executionMode === 'autonomous' ? autonomousStep : undefined}
+        />
       </div>
 
-      {/* ── Enterprise Adapter Layer ── */}
+      {/* ── Enterprise Actions Executed ── */}
       <div style={{ padding: '20px 40px 0' }}>
         <EnterpriseAdapterLayerPanel backendStatus={backendStatus} workflowRun={workflowRun} />
       </div>
@@ -392,8 +443,8 @@ export default function PostFnolCoverageJourneyPage({ claim, onBack, onViewDocum
         style={{
           padding: '24px 40px 40px',
           overflow: 'hidden',
-          maxHeight: isComplete ? 200 : 0,
-          opacity: isComplete ? 1 : 0,
+          maxHeight: effectiveIsComplete ? 200 : 0,
+          opacity: effectiveIsComplete ? 1 : 0,
           transition: 'max-height 0.6s ease, opacity 0.5s ease',
         }}
       >
@@ -504,6 +555,202 @@ function OrchestrationStrip({
             {claim.lossType} · {claim.id}
           </p>
         </div>
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════
+   Autonomous Execution Panel
+═══════════════════════════════════════════ */
+const AUTO_STAGE_LABELS = [
+  'Coverage Confirmation',
+  'Investigation & Evaluation',
+  'Adaptive Documentation Orchestration',
+  'Autonomous Enrichment',
+  'Proactive Workflow Coordination',
+];
+
+function AutonomousExecutionPanel({ autonomousStep, onStart }: { autonomousStep: number; onStart: () => void }) {
+  const isRunning = autonomousStep > 0 && autonomousStep < 6;
+  const isDone    = autonomousStep >= 6;
+
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-white overflow-hidden" style={{ boxShadow: CARD_SHADOW }}>
+      {/* Header */}
+      <div
+        className="flex items-center justify-between border-b border-slate-100"
+        style={{ padding: '14px 24px', background: 'rgba(248,250,252,0.9)' }}
+      >
+        <div className="flex items-center gap-3">
+          <div
+            className="rounded-xl flex items-center justify-center shrink-0"
+            style={{ width: 32, height: 32, background: `linear-gradient(135deg, ${BLUE} 0%, ${NAVY} 100%)`, boxShadow: '0 2px 8px rgba(25,118,210,0.30)' }}
+          >
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+              <circle cx="7" cy="7" r="5.5" stroke="white" strokeWidth="1.3"/>
+              <path d="M4.5 7l2 2L9.5 5" stroke="white" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          </div>
+          <div>
+            <p className="font-black text-[#0f3460] leading-none" style={{ fontSize: 13 }}>
+              Supervised Autonomous Execution
+            </p>
+            <p className="font-medium text-slate-400 leading-none mt-0.5" style={{ fontSize: 9 }}>
+              QARL orchestrates all 5 capabilities — adjuster retains full approval authority
+            </p>
+          </div>
+        </div>
+        {isDone && (
+          <span className="font-black rounded-full border border-emerald-200 bg-emerald-50 text-emerald-700"
+                style={{ fontSize: 8, letterSpacing: '0.10em', padding: '3px 12px' }}>
+            EXECUTION COMPLETE
+          </span>
+        )}
+        {isRunning && (
+          <span className="font-black rounded-full border border-blue-200 bg-blue-50 text-[#1976d2] animate-pulse"
+                style={{ fontSize: 8, letterSpacing: '0.10em', padding: '3px 12px' }}>
+            AUTONOMOUS EXECUTION RUNNING
+          </span>
+        )}
+      </div>
+
+      {/* Body */}
+      <div style={{ padding: '24px' }}>
+        {autonomousStep === 0 ? (
+          <div className="flex flex-col items-center gap-6" style={{ padding: '16px 0' }}>
+            <div className="text-center" style={{ maxWidth: 540 }}>
+              <p className="font-black text-[#0f3460] mb-2" style={{ fontSize: 15 }}>
+                QARL Autonomous Workflow
+              </p>
+              <p className="font-medium text-slate-500 leading-relaxed" style={{ fontSize: 12 }}>
+                QARL will orchestrate all 5 capabilities autonomously under adjuster supervision.
+                Each step requires no manual interaction. Adjuster retains full approval authority
+                over all system actions and the final governed claim package.
+              </p>
+            </div>
+            {/* Stage preview chips */}
+            <div className="flex items-center gap-2 flex-wrap justify-center">
+              {AUTO_STAGE_LABELS.map((label, i) => (
+                <div key={i} className="flex items-center gap-2">
+                  <span className="rounded-full border border-slate-200 bg-slate-100 font-bold text-slate-400"
+                        style={{ fontSize: 8, letterSpacing: '0.06em', padding: '3px 10px' }}>
+                    {label}
+                  </span>
+                  {i < AUTO_STAGE_LABELS.length - 1 && (
+                    <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                      <path d="M2 5h6M6 3l2 2-2 2" stroke="#94a3b8" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                  )}
+                </div>
+              ))}
+            </div>
+            <button
+              onClick={onStart}
+              className="flex items-center gap-2.5 rounded-xl font-black text-white transition-all hover:opacity-90 active:scale-[0.97]"
+              style={{
+                fontSize: 13, padding: '13px 32px',
+                background: `linear-gradient(135deg, ${BLUE} 0%, ${NAVY} 100%)`,
+                boxShadow: '0 4px 16px rgba(25,118,210,0.35)',
+                border: 'none', cursor: 'pointer',
+              }}
+            >
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                <polygon points="3,2 12,7 3,12" fill="white"/>
+              </svg>
+              Start Autonomous Execution
+            </button>
+            <p className="font-medium text-slate-400" style={{ fontSize: 10 }}>
+              All system actions require human approval before taking effect
+            </p>
+          </div>
+        ) : (
+          <div>
+            {/* Pipeline */}
+            <div className="flex items-start gap-0 mb-6">
+              {AUTO_STAGE_LABELS.map((label, i) => {
+                const stageNum   = i + 1;
+                const stageDone   = autonomousStep > stageNum;
+                const stageActive = autonomousStep === stageNum;
+                return (
+                  <div key={i} className="flex items-center flex-1">
+                    <div className="flex flex-col items-center flex-1" style={{ minWidth: 0 }}>
+                      <div
+                        className="rounded-full flex items-center justify-center shrink-0"
+                        style={{
+                          width: 38, height: 38,
+                          background: stageDone
+                            ? 'linear-gradient(135deg, #059669 0%, #047857 100%)'
+                            : stageActive
+                            ? `linear-gradient(135deg, ${BLUE} 0%, ${NAVY} 100%)`
+                            : '#f1f5f9',
+                          border: stageDone ? '2px solid #059669' : stageActive ? `2px solid ${BLUE}` : '2px solid #e2e8f0',
+                          boxShadow: stageActive ? '0 0 0 4px rgba(25,118,210,0.15)' : 'none',
+                          transition: 'all 0.4s ease',
+                        }}
+                      >
+                        {stageDone ? (
+                          <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                            <path d="M3 7l3 3 5-5" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                          </svg>
+                        ) : stageActive ? (
+                          <span className="rounded-full bg-white shrink-0" style={{ width: 10, height: 10 }} />
+                        ) : (
+                          <span className="font-black text-slate-400" style={{ fontSize: 12 }}>{stageNum}</span>
+                        )}
+                      </div>
+                      <p className="font-semibold text-center leading-tight mt-2"
+                         style={{ fontSize: 9, color: stageDone ? '#059669' : stageActive ? BLUE : '#94a3b8', maxWidth: 90 }}>
+                        {label}
+                      </p>
+                      {stageActive && (
+                        <span className="font-bold text-[#1976d2] animate-pulse mt-0.5" style={{ fontSize: 8 }}>
+                          Processing…
+                        </span>
+                      )}
+                    </div>
+                    {i < AUTO_STAGE_LABELS.length - 1 && (
+                      <div className="shrink-0" style={{
+                        width: 20, height: 2, marginBottom: 32,
+                        background: autonomousStep > i + 1 ? '#059669' : '#e2e8f0',
+                        transition: 'background 0.4s ease',
+                      }} />
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+            {/* Governance finale */}
+            {isDone && (
+              <div className="rounded-xl border border-emerald-200 flex items-center gap-4"
+                   style={{ padding: '16px 20px', background: '#f0fdf4' }}>
+                <div className="rounded-full bg-emerald-100 flex items-center justify-center shrink-0"
+                     style={{ width: 42, height: 42, border: '2px solid #bbf7d0' }}>
+                  <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+                    <path d="M3.5 9l3.5 3.5L14.5 5" stroke="#059669" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </div>
+                <div className="flex-1">
+                  <p className="font-black text-emerald-800 leading-none" style={{ fontSize: 14 }}>
+                    Governed Claim Package Ready
+                  </p>
+                  <p className="font-semibold text-emerald-600 mt-0.5" style={{ fontSize: 11 }}>
+                    Awaiting Human Approval — Adjuster review required before any system action takes effect
+                  </p>
+                </div>
+                <div className="shrink-0 flex flex-col items-end gap-1.5">
+                  <span className="font-black rounded-full border border-amber-200 bg-amber-50 text-amber-700"
+                        style={{ fontSize: 8, letterSpacing: '0.10em', padding: '3px 12px' }}>
+                    PENDING APPROVAL
+                  </span>
+                  <span className="font-medium text-emerald-600" style={{ fontSize: 9 }}>
+                    5 capabilities executed · No system actions taken without approval
+                  </span>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -859,7 +1106,6 @@ function CheckRow({ done, text }: { done: boolean; text: string }) {
    AI Package Status panel
 ═══════════════════════════════════════════ */
 function AiPackageStatusPanel({ isComplete, capFlags, workflowRun }: { isComplete: boolean; capFlags: CapabilityFlags; workflowRun?: WorkflowRunResult | null }) {
-  const allOptionalDone = capFlags.multiPartyAdded && capFlags.documentationVisited && capFlags.enrichmentAdded && capFlags.alertsAdded;
 
   return (
     <div
@@ -882,10 +1128,10 @@ function AiPackageStatusPanel({ isComplete, capFlags, workflowRun }: { isComplet
         </div>
         <div>
           <p className="font-black text-[#0f3460] leading-none" style={{ fontSize: 12 }}>
-            AI Package Status
+            Governed Claim Package
           </p>
           <p className="font-medium text-slate-400 leading-none mt-0.5" style={{ fontSize: 9 }}>
-            Current state of the AI-generated claim package
+            AI-assembled package pending adjuster approval
           </p>
         </div>
       </div>
@@ -894,7 +1140,7 @@ function AiPackageStatusPanel({ isComplete, capFlags, workflowRun }: { isComplet
       <div style={{ padding: '14px 20px 12px' }}>
         {!isComplete ? (
           <p className="text-slate-400 font-medium" style={{ fontSize: 11 }}>
-            Assembling AI package…
+            Assembling governed package…
           </p>
         ) : (
           <div className="space-y-2">
@@ -930,8 +1176,8 @@ function AiPackageStatusPanel({ isComplete, capFlags, workflowRun }: { isComplet
         >
           <p className="font-semibold text-slate-500" style={{ fontSize: 10 }}>
             Package Status:{' '}
-            <span className={allOptionalDone ? 'text-emerald-600 font-black' : 'text-[#1976d2] font-black'}>
-              {allOptionalDone ? 'Complete' : 'Ready for adjuster review'}
+            <span className="text-amber-600 font-black">
+              Governed Claim Package Ready · Awaiting Human Approval
             </span>
           </p>
           {workflowRun && (
@@ -1076,7 +1322,8 @@ function ArchitectureProofPanel({
 /* ═══════════════════════════════════════════
    Manual elimination banner
 ═══════════════════════════════════════════ */
-function ManualEliminationBanner({ isComplete }: { isComplete: boolean }) {
+function ManualEliminationBanner({ isComplete, autonomousStep }: { isComplete: boolean; autonomousStep?: number }) {
+  const isAutonomousMode = autonomousStep !== undefined;
   return (
     <div
       className="rounded-2xl border border-slate-200 bg-white overflow-hidden"
@@ -1113,38 +1360,40 @@ function ManualEliminationBanner({ isComplete }: { isComplete: boolean }) {
       </div>
 
       <div className="flex items-center justify-around" style={{ padding: '18px 20px' }}>
-        {MANUAL_TASKS.map(task => (
-          <div key={task.label} className="flex flex-col items-center gap-2">
-            <div className="relative">
-              <div
-                className="rounded-xl border border-slate-200 bg-slate-50 flex items-center justify-center"
-                style={{ width: 48, height: 48, opacity: 0.28 }}
-              >
-                {task.icon}
+        {MANUAL_TASKS.map((task, idx) => {
+          const isEliminated = isAutonomousMode ? (autonomousStep ?? 0) > idx : isComplete;
+          return (
+            <div key={task.label} className="flex flex-col items-center gap-2">
+              <div className="relative">
+                <div
+                  className="rounded-xl border border-slate-200 bg-slate-50 flex items-center justify-center"
+                  style={{ width: 48, height: 48, opacity: 0.28 }}
+                >
+                  {task.icon}
+                </div>
+                <div
+                  className="absolute -top-1.5 -right-1.5 rounded-full bg-rose-500 flex items-center justify-center"
+                  style={{
+                    width: 16, height: 16,
+                    boxShadow: '0 1px 4px rgba(239,68,68,0.40)',
+                    opacity: isEliminated ? 1 : 0.2,
+                    transition: 'opacity 0.5s ease',
+                  }}
+                >
+                  <svg width="7" height="7" viewBox="0 0 7 7" fill="none">
+                    <path d="M1.5 1.5l4 4M5.5 1.5l-4 4" stroke="white" strokeWidth="1.3" strokeLinecap="round"/>
+                  </svg>
+                </div>
               </div>
-              {/* Eliminated X badge */}
-              <div
-                className="absolute -top-1.5 -right-1.5 rounded-full bg-rose-500 flex items-center justify-center"
-                style={{
-                  width: 16, height: 16,
-                  boxShadow: '0 1px 4px rgba(239,68,68,0.40)',
-                  opacity: isComplete ? 1 : 0.6,
-                  transition: 'opacity 0.5s ease',
-                }}
+              <span
+                className="font-semibold text-center leading-tight line-through"
+                style={{ fontSize: 9, color: '#94a3b8', maxWidth: 72, opacity: isEliminated ? 1 : 0.4, transition: 'opacity 0.5s ease' }}
               >
-                <svg width="7" height="7" viewBox="0 0 7 7" fill="none">
-                  <path d="M1.5 1.5l4 4M5.5 1.5l-4 4" stroke="white" strokeWidth="1.3" strokeLinecap="round"/>
-                </svg>
-              </div>
+                {task.label}
+              </span>
             </div>
-            <span
-              className="font-semibold text-center leading-tight line-through"
-              style={{ fontSize: 9, color: '#94a3b8', maxWidth: 72 }}
-            >
-              {task.label}
-            </span>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );
@@ -1168,12 +1417,12 @@ const ADAPTER_ROWS: {
 ];
 
 const TRACE_EVENTS: { system: string; event: string; warn?: boolean }[] = [
-  { system: 'PolicyCenter', event: 'Policy coverage read'                        },
-  { system: 'ClaimCenter',  event: 'Claim context read'                          },
-  { system: 'EDW',          event: 'Comparable loss data read'                   },
-  { system: 'Outlook',      event: 'Email draft prepared'                        },
-  { system: 'ClaimCenter',  event: 'Write-back blocked pending approval', warn: true },
-  { system: 'Event Bus',    event: 'Audit event published'                       },
+  { system: 'PolicyCenter', event: 'Coverage eligibility confirmed'                               },
+  { system: 'ClaimCenter',  event: 'Claim file reviewed and context extracted'                    },
+  { system: 'EDW',          event: 'Comparable losses and risk signals analyzed'                  },
+  { system: 'Outlook',      event: 'Assignment email drafted — awaiting send approval'            },
+  { system: 'ClaimCenter',  event: 'Claim note prepared — awaiting adjuster approval', warn: true },
+  { system: 'Event Bus',    event: 'Governance audit trail recorded'                              },
 ];
 
 const DIR_STYLE: Record<string, { color: string; bg: string; border: string }> = {
@@ -1217,10 +1466,10 @@ function EnterpriseAdapterLayerPanel({
           </div>
           <div>
             <p className="font-black text-[#0f3460] leading-none" style={{ fontSize: 12 }}>
-              Enterprise Adapter Layer
+              Enterprise Actions Executed
             </p>
             <p className="font-medium text-slate-400 leading-none mt-0.5" style={{ fontSize: 9 }}>
-              Bidirectional system access through governed mock MCP contracts
+              AI-initiated enterprise actions — all outcomes pending human approval
             </p>
           </div>
         </div>
@@ -1404,7 +1653,7 @@ function CompletionBanner({ onBack }: { onBack: () => void }) {
             {[
               '5 AI capabilities executed',
               '5 manual tasks eliminated',
-              'Claim ready for adjuster action',
+              'Governed Claim Package — Awaiting Approval',
             ].map((item, i) => (
               <div key={i} className="flex items-center gap-1.5">
                 <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
