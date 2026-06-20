@@ -44,6 +44,54 @@ CAPABILITY_SEQUENCE = [
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# Adapter contract evidence — populated once on workflow completion
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _build_adapter_contracts() -> list[dict]:
+    """
+    Returns mock MCP adapter contract evidence for each enterprise system.
+    TODO: Replace with real adapter registry lookup in Phase 3.
+    """
+    return [
+        {
+            "system": "PolicyCenter",
+            "direction": "READ",
+            "status": "MOCK_CONTRACT_ACTIVE",
+            "purpose": "Coverage and policy verification",
+            "lastEvent": "Policy coverage read through mock adapter",
+        },
+        {
+            "system": "ClaimCenter",
+            "direction": "READ / WRITE_PENDING_APPROVAL",
+            "status": "MOCK_CONTRACT_ACTIVE",
+            "purpose": "Claim context and governed note write-back",
+            "lastEvent": "Write-back blocked pending human approval",
+        },
+        {
+            "system": "EDW",
+            "direction": "READ",
+            "status": "MOCK_CONTRACT_ACTIVE",
+            "purpose": "Comparable loss and fraud enrichment",
+            "lastEvent": "Comparable loss data read through mock adapter",
+        },
+        {
+            "system": "Outlook",
+            "direction": "DRAFT",
+            "status": "MOCK_CONTRACT_ACTIVE",
+            "purpose": "Assignment email and adjuster notifications",
+            "lastEvent": "Email draft prepared pending approval",
+        },
+        {
+            "system": "Event Bus",
+            "direction": "PUBLISH",
+            "status": "MOCK_CONTRACT_ACTIVE",
+            "purpose": "Governance audit event publication",
+            "lastEvent": "Audit event published to governance log",
+        },
+    ]
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Supervisor node
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -65,6 +113,7 @@ def supervisor_node(state: ClaimWorkflowState) -> dict:
             "coverage_confidence": 98,
             "manual_steps_eliminated": 14,
             "audit_trace": audit,
+            "adapter_contracts": _build_adapter_contracts(),
         }
 
     next_cap = CAPABILITY_SEQUENCE[executed]

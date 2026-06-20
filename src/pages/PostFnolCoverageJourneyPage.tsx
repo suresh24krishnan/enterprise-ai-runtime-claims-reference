@@ -349,6 +349,11 @@ export default function PostFnolCoverageJourneyPage({ claim, onBack, onViewDocum
         <ManualEliminationBanner isComplete={isComplete} />
       </div>
 
+      {/* ── Enterprise Adapter Layer ── */}
+      <div style={{ padding: '20px 40px 0' }}>
+        <EnterpriseAdapterLayerPanel backendStatus={backendStatus} workflowRun={workflowRun} />
+      </div>
+
       {/* ── Completion banner ── */}
       <div
         style={{
@@ -1107,6 +1112,222 @@ function ManualEliminationBanner({ isComplete }: { isComplete: boolean }) {
             </span>
           </div>
         ))}
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════
+   Enterprise Adapter Layer panel
+═══════════════════════════════════════════ */
+
+const ADAPTER_ROWS: {
+  system: string;
+  direction: string;
+  dirType: 'read' | 'write' | 'draft' | 'publish';
+  purpose: string;
+}[] = [
+  { system: 'PolicyCenter', direction: 'READ',                    dirType: 'read',    purpose: 'Coverage and policy verification'            },
+  { system: 'ClaimCenter',  direction: 'READ / WRITE PENDING',    dirType: 'write',   purpose: 'Claim context and governed note write-back'  },
+  { system: 'EDW',          direction: 'READ',                    dirType: 'read',    purpose: 'Comparable loss and fraud enrichment'         },
+  { system: 'Outlook',      direction: 'DRAFT',                   dirType: 'draft',   purpose: 'Assignment email and adjuster notifications'  },
+  { system: 'Event Bus',    direction: 'PUBLISH',                 dirType: 'publish', purpose: 'Governance audit event publication'           },
+];
+
+const TRACE_EVENTS: { system: string; event: string; warn?: boolean }[] = [
+  { system: 'PolicyCenter', event: 'Policy coverage read'                        },
+  { system: 'ClaimCenter',  event: 'Claim context read'                          },
+  { system: 'EDW',          event: 'Comparable loss data read'                   },
+  { system: 'Outlook',      event: 'Email draft prepared'                        },
+  { system: 'ClaimCenter',  event: 'Write-back blocked pending approval', warn: true },
+  { system: 'Event Bus',    event: 'Audit event published'                       },
+];
+
+const DIR_STYLE: Record<string, { color: string; bg: string; border: string }> = {
+  read:    { color: '#1d4ed8', bg: '#eff6ff', border: '#bfdbfe' },
+  write:   { color: '#b45309', bg: '#fffbeb', border: '#fde68a' },
+  draft:   { color: '#4338ca', bg: '#eef2ff', border: '#c7d2fe' },
+  publish: { color: '#7c3aed', bg: '#f5f3ff', border: '#ddd6fe' },
+};
+
+function EnterpriseAdapterLayerPanel({
+  backendStatus,
+  workflowRun,
+}: {
+  backendStatus?: 'loading' | 'connected' | 'prototype' | null;
+  workflowRun?: WorkflowRunResult | null;
+}) {
+  const isConnected = backendStatus === 'connected';
+
+  return (
+    <div
+      className="rounded-2xl border border-slate-200 bg-white overflow-hidden"
+      style={{ boxShadow: CARD_SHADOW }}
+    >
+      {/* Header */}
+      <div
+        className="flex items-center justify-between border-b border-slate-100"
+        style={{ padding: '12px 20px', background: 'rgba(248,250,252,0.9)' }}
+      >
+        <div className="flex items-center gap-2.5">
+          <div
+            className="rounded-lg flex items-center justify-center shrink-0"
+            style={{ width: 26, height: 26, background: '#7c3aed' }}
+          >
+            {/* Plug/connector icon */}
+            <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
+              <rect x="4" y="1" width="2" height="3" rx="0.5" stroke="white" strokeWidth="1.1"/>
+              <rect x="7" y="1" width="2" height="3" rx="0.5" stroke="white" strokeWidth="1.1"/>
+              <path d="M2.5 4h8v2a4 4 0 01-8 0V4z" stroke="white" strokeWidth="1.1" strokeLinejoin="round"/>
+              <line x1="6.5" y1="8" x2="6.5" y2="12" stroke="white" strokeWidth="1.1" strokeLinecap="round"/>
+            </svg>
+          </div>
+          <div>
+            <p className="font-black text-[#0f3460] leading-none" style={{ fontSize: 12 }}>
+              Enterprise Adapter Layer
+            </p>
+            <p className="font-medium text-slate-400 leading-none mt-0.5" style={{ fontSize: 9 }}>
+              Bidirectional system access through governed mock MCP contracts
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          <span
+            className="font-bold rounded-full border"
+            style={{ fontSize: 8, letterSpacing: '0.08em', padding: '2px 9px', color: '#059669', background: '#f0fdf4', borderColor: '#bbf7d0' }}
+          >
+            5 MOCK CONTRACTS ACTIVE
+          </span>
+          {workflowRun && (
+            <span
+              className="font-mono font-medium rounded border"
+              style={{ fontSize: 8, padding: '2px 7px', color: '#7c3aed', background: '#f5f3ff', borderColor: '#ddd6fe' }}
+            >
+              {workflowRun.adapterEventCount} adapter events
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* Body: two columns */}
+      <div className="grid grid-cols-2 gap-0 divide-x divide-slate-100">
+
+        {/* ── Left: adapter contract table ── */}
+        <div style={{ padding: '14px 20px 16px' }}>
+          <p className="font-black text-slate-400 uppercase mb-3" style={{ fontSize: 8, letterSpacing: '0.14em' }}>
+            Adapter Contracts
+          </p>
+          <div className="space-y-2">
+            {ADAPTER_ROWS.map(row => {
+              const ds = DIR_STYLE[row.dirType];
+              return (
+                <div key={row.system} className="flex items-center gap-3">
+                  {/* System name */}
+                  <span
+                    className="font-black text-[#0f3460] shrink-0"
+                    style={{ fontSize: 10, minWidth: 80 }}
+                  >
+                    {row.system}
+                  </span>
+                  {/* Direction badge */}
+                  <span
+                    className="font-bold rounded border shrink-0 uppercase"
+                    style={{ fontSize: 7.5, letterSpacing: '0.06em', padding: '2px 6px', color: ds.color, background: ds.bg, borderColor: ds.border }}
+                  >
+                    {row.direction}
+                  </span>
+                  {/* Mock active badge */}
+                  <span
+                    className="font-bold rounded border shrink-0"
+                    style={{ fontSize: 7.5, letterSpacing: '0.06em', padding: '2px 6px', color: '#059669', background: '#f0fdf4', borderColor: '#bbf7d0' }}
+                  >
+                    MOCK ACTIVE
+                  </span>
+                  {/* Purpose */}
+                  <span className="font-medium text-slate-400 truncate" style={{ fontSize: 9 }}>
+                    {row.purpose}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Phase 3 note */}
+          <div
+            className="mt-4 rounded-lg border border-slate-200 bg-slate-50"
+            style={{ padding: '8px 12px' }}
+          >
+            <p className="font-medium text-slate-500 leading-snug" style={{ fontSize: 9.5 }}>
+              Mock contracts are active today. Phase 3 replaces these contracts with production enterprise adapters without changing the user workflow.
+            </p>
+          </div>
+        </div>
+
+        {/* ── Right: runtime trace preview ── */}
+        <div style={{ padding: '14px 20px 16px' }}>
+          <p className="font-black text-slate-400 uppercase mb-3" style={{ fontSize: 8, letterSpacing: '0.14em' }}>
+            Runtime Trace Preview
+          </p>
+          <div className="space-y-1.5">
+            {TRACE_EVENTS.map((ev, i) => (
+              <div
+                key={i}
+                className="flex items-center gap-2.5 rounded-lg"
+                style={{
+                  padding: '5px 9px',
+                  background: ev.warn ? '#fffbeb' : '#f8fafc',
+                  border: `1px solid ${ev.warn ? '#fde68a' : '#e2e8f0'}`,
+                  opacity: isConnected ? 1 : 0.65,
+                  transition: 'opacity 0.3s ease',
+                }}
+              >
+                {/* Status icon */}
+                <div
+                  className="rounded-full flex items-center justify-center shrink-0"
+                  style={{ width: 14, height: 14, background: ev.warn ? '#fef3c7' : '#dbeafe', border: `1px solid ${ev.warn ? '#fde68a' : '#bfdbfe'}` }}
+                >
+                  {ev.warn ? (
+                    <svg width="7" height="7" viewBox="0 0 7 7" fill="none">
+                      <path d="M3.5 2v2.5" stroke="#b45309" strokeWidth="1.2" strokeLinecap="round"/>
+                      <circle cx="3.5" cy="5.5" r="0.5" fill="#b45309"/>
+                    </svg>
+                  ) : (
+                    <svg width="7" height="7" viewBox="0 0 7 7" fill="none">
+                      <path d="M1.5 3.5l1.2 1.2L5.5 2" stroke={BLUE} strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                  )}
+                </div>
+                {/* System chip */}
+                <span
+                  className="font-black shrink-0 rounded"
+                  style={{ fontSize: 8, letterSpacing: '0.04em', padding: '1px 5px', color: '#475569', background: '#e2e8f0' }}
+                >
+                  {ev.system}
+                </span>
+                {/* Event text */}
+                <span
+                  className="font-medium leading-none"
+                  style={{ fontSize: 9.5, color: ev.warn ? '#92400e' : '#374151' }}
+                >
+                  {ev.event}
+                </span>
+              </div>
+            ))}
+          </div>
+
+          {/* Connection state note */}
+          <div className="mt-3 flex items-center gap-1.5">
+            <span
+              className="rounded-full shrink-0"
+              style={{ width: 5, height: 5, background: isConnected ? '#4ade80' : '#94a3b8' }}
+            />
+            <span className="font-medium text-slate-400" style={{ fontSize: 9 }}>
+              {isConnected
+                ? 'Trace sourced from live LangGraph execution'
+                : 'Trace reflects mock contract execution sequence'}
+            </span>
+          </div>
+        </div>
       </div>
     </div>
   );

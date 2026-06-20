@@ -33,3 +33,4 @@ class ClaimWorkflowState(TypedDict):
     capabilities_executed: int
     manual_steps_eliminated: int
     coverage_confidence: int   # Final confidence score (0-100)
+    adapter_contracts: list[Any]  # Adapter evidence populated on workflow completion

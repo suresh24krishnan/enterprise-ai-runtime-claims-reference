@@ -12,6 +12,14 @@
 const API_BASE =
   (import.meta.env.VITE_QARL_API_BASE_URL as string | undefined) ?? '';
 
+export interface AdapterContract {
+  system: string;
+  direction: string;
+  status: string;
+  purpose: string;
+  lastEvent: string;
+}
+
 export interface WorkflowRunResult {
   runId: string;
   claimId: string;
@@ -23,6 +31,8 @@ export interface WorkflowRunResult {
   capabilityResults: Record<string, unknown>;
   auditTraceCount: number;
   completedAt: number;
+  adapterContracts: AdapterContract[];
+  adapterEventCount: number;
 }
 
 export interface WorkflowTraceResult {

@@ -64,6 +64,8 @@ class WorkflowRunResponse(BaseModel):
     capabilityResults: dict[str, Any]
     auditTraceCount: int
     completedAt: float
+    adapterContracts: list[dict[str, str]]
+    adapterEventCount: int
 
 
 class TraceResponse(BaseModel):
@@ -114,6 +116,7 @@ def run_workflow(request: WorkflowRunRequest):
 
     _run_store[run_id] = final_state
 
+    adapter_contracts = final_state.get("adapter_contracts", [])
     return WorkflowRunResponse(
         runId=run_id,
         claimId=request.claimId,
@@ -125,6 +128,8 @@ def run_workflow(request: WorkflowRunRequest):
         capabilityResults=final_state.get("capability_results", {}),
         auditTraceCount=len(final_state.get("audit_trace", [])),
         completedAt=completed_at,
+        adapterContracts=adapter_contracts,
+        adapterEventCount=len(adapter_contracts),
     )
 
 
