@@ -13,6 +13,7 @@ import AutoAlertsPage from './pages/AutoAlertsPage';
 import type { AlertPackage } from './pages/AutoAlertsPage';
 import { runQarlWorkflow } from './services/qarlApi';
 import type { WorkflowRunResult } from './services/qarlApi';
+import type { ClaimStatus } from './types';
 
 type Screen = 'workspace' | 'journey' | 'documentation' | 'multiparty' | 'enrichments' | 'alerts';
 
@@ -67,6 +68,8 @@ export default function App() {
   // Per-claim LangGraph backend results
   const [workflowRunMap, setWorkflowRunMap] = useState<Record<string, WorkflowRunResult>>({});
   const [backendStatusMap, setBackendStatusMap] = useState<Record<string, 'loading' | 'connected' | 'prototype'>>({});
+  // Per-claim workflow lifecycle status (single source of truth for worklist)
+  const [workflowStatusMap, setWorkflowStatusMap] = useState<Record<string, ClaimStatus>>({});
 
   const handleSelectClaim = (claim: Claim) => {
     const isNewClaim = claim.id !== lastClaimIdRef.current;
@@ -97,11 +100,15 @@ export default function App() {
       {!activeClaim ? (
         <WorklistPage
           onSelectClaim={handleSelectClaim}
-          claimStatusOverrides={Object.fromEntries(
-            Object.entries(claimWorkflowState)
-              .filter(([, s]) => s.claimCenterWritten)
-              .map(([id]) => [id, 'Completed' as const])
-          )}
+          claimStatusOverrides={{
+            // workflow lifecycle status takes priority; fall back to doc-approval 'Completed'
+            ...Object.fromEntries(
+              Object.entries(claimWorkflowState)
+                .filter(([, s]) => s.claimCenterWritten)
+                .map(([id]) => [id, 'Completed' as const])
+            ),
+            ...workflowStatusMap,
+          }}
         />
       ) : screen === 'documentation' ? (
         <InteractiveDocumentationPage
@@ -179,6 +186,10 @@ export default function App() {
           capFlags={capState}
           workflowRun={workflowRunMap[activeClaim.id] ?? null}
           backendStatus={backendStatusMap[activeClaim.id] ?? null}
+          onWorkflowStatus={(status) => {
+            const claimId = activeClaim.id;
+            setWorkflowStatusMap(prev => ({ ...prev, [claimId]: status }));
+          }}
         />
       ) : (
         <ClaimDetailPage

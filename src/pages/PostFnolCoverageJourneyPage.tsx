@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import type { Claim } from '../types';
+import type { Claim, ClaimStatus } from '../types';
 import type { WorkflowRunResult } from '../services/qarlApi';
 
 interface CapabilityFlags {
@@ -21,6 +21,7 @@ interface Props {
   capFlags: CapabilityFlags;
   workflowRun?: WorkflowRunResult | null;
   backendStatus?: 'loading' | 'connected' | 'prototype' | null;
+  onWorkflowStatus?: (status: ClaimStatus) => void;
 }
 
 type ApprovalState = 'awaiting' | 'approving' | 'approved' | 'returned' | 'rejected';
@@ -130,7 +131,7 @@ const MANUAL_TASKS = [
 /* Final elapsed when all steps complete: used as initial value on subsequent visits */
 const FINAL_ELAPSED = INITIAL_DELAY + 5 * STEP_DELAY;
 
-export default function PostFnolCoverageJourneyPage({ claim, onBack, onViewDocumentation, onViewMultiParty, onViewEnrichments, onViewAlerts, hasAnimated, onAnimationComplete, capFlags, workflowRun, backendStatus }: Props) {
+export default function PostFnolCoverageJourneyPage({ claim, onBack, onViewDocumentation, onViewMultiParty, onViewEnrichments, onViewAlerts, hasAnimated, onAnimationComplete, capFlags, workflowRun, backendStatus, onWorkflowStatus }: Props) {
   const steps = buildSteps(claim);
 
   /*
@@ -141,23 +142,29 @@ export default function PostFnolCoverageJourneyPage({ claim, onBack, onViewDocum
    *
    * When hasAnimated=true (subsequent visits), start directly at 6 (completed state).
    */
+  /* workflowStarted gates all execution — false until adjuster clicks Start Workflow */
+  const [workflowStarted, setWorkflowStarted] = useState(hasAnimated);
+
   const [activeStep, setActiveStep] = useState(hasAnimated ? 6 : 0);
   const [elapsed, setElapsed] = useState(hasAnimated ? FINAL_ELAPSED : 0);
 
-  /* Sequential step advancement — only runs on first visit */
+  /* Sequential step advancement — only runs after Start Workflow is clicked */
   useEffect(() => {
-    if (hasAnimated) return;
+    if (!workflowStarted || hasAnimated) return;
     const timers: ReturnType<typeof setTimeout>[] = [];
     for (let i = 1; i <= 6; i++) {
       timers.push(
         setTimeout(() => {
           setActiveStep(i);
-          if (i === 6) onAnimationComplete();
+          if (i === 6) {
+            onAnimationComplete();
+            onWorkflowStatus?.('Awaiting Approval');
+          }
         }, INITIAL_DELAY + (i - 1) * STEP_DELAY)
       );
     }
     return () => timers.forEach(clearTimeout);
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [workflowStarted]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /* Elapsed time counter (stops at completion) */
   useEffect(() => {
@@ -178,7 +185,10 @@ export default function PostFnolCoverageJourneyPage({ claim, onBack, onViewDocum
     setAutonomousStep(1);
     setAutonomousElapsed(0);
     for (let i = 2; i <= 6; i++) {
-      setTimeout(() => setAutonomousStep(i), (i - 1) * 1400);
+      setTimeout(() => {
+        setAutonomousStep(i);
+        if (i === 6) onWorkflowStatus?.('Awaiting Approval');
+      }, (i - 1) * 1400);
     }
   }
 
@@ -188,18 +198,41 @@ export default function PostFnolCoverageJourneyPage({ claim, onBack, onViewDocum
     return () => clearInterval(t);
   }, [autonomousStep]);
 
+  /* Single Start Workflow button — kicks off whichever mode is selected */
+  function handleStartWorkflow() {
+    setWorkflowStarted(true);
+    onWorkflowStatus?.('Running');
+    if (executionMode === 'autonomous') {
+      startAutonomous();
+    }
+  }
+
   const [approvalState, setApprovalState] = useState<ApprovalState>('awaiting');
   const [approvalCommitStep, setApprovalCommitStep] = useState(0);
 
   function handleApprove() {
     setApprovalState('approving');
     setApprovalCommitStep(1);
+    onWorkflowStatus?.('Awaiting Approval');
     for (let i = 2; i <= 6; i++) {
       setTimeout(() => {
         setApprovalCommitStep(i);
-        if (i === 6) setApprovalState('approved');
+        if (i === 6) {
+          setApprovalState('approved');
+          onWorkflowStatus?.('Completed');
+        }
       }, (i - 1) * 800);
     }
+  }
+
+  function handleRequestChanges() {
+    setApprovalState('returned');
+    onWorkflowStatus?.('Returned');
+  }
+
+  function handleReject() {
+    setApprovalState('rejected');
+    onWorkflowStatus?.('Rejected');
   }
 
   const effectiveActiveStep     = executionMode === 'autonomous' ? autonomousStep : activeStep;
@@ -335,18 +368,55 @@ export default function PostFnolCoverageJourneyPage({ claim, onBack, onViewDocum
         </div>
       </div>
 
+      {/* ── Start Workflow gate ── */}
+      {!workflowStarted && (
+        <div className="flex flex-col items-center justify-center gap-5" style={{ padding: '48px 40px' }}>
+          <div className="text-center" style={{ maxWidth: 520 }}>
+            <p className="font-black text-[#0f3460] mb-1" style={{ fontSize: 16 }}>
+              {executionMode === 'manual' ? 'Manual Guided Review' : 'Supervised Autonomous Execution'}
+            </p>
+            <p className="font-medium text-slate-500 leading-relaxed" style={{ fontSize: 13 }}>
+              Choose how this claim should be processed.
+            </p>
+          </div>
+          <button
+            onClick={handleStartWorkflow}
+            className="flex items-center gap-3 rounded-xl font-black text-white transition-all hover:opacity-90 active:scale-[0.97]"
+            style={{
+              fontSize: 14, padding: '14px 36px',
+              background: `linear-gradient(135deg, ${BLUE} 0%, ${NAVY} 100%)`,
+              boxShadow: '0 4px 18px rgba(25,118,210,0.35)',
+              border: 'none', cursor: 'pointer',
+            }}
+          >
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+              <polygon points="4,2 14,8 4,14" fill="white"/>
+            </svg>
+            Start Workflow
+          </button>
+          <p className="font-medium text-slate-400" style={{ fontSize: 11 }}>
+            {executionMode === 'manual'
+              ? 'Guided step-by-step review with adjuster interaction at each stage'
+              : 'QARL orchestrates all 5 capabilities · adjuster reviews and approves the governed package'}
+          </p>
+        </div>
+      )}
+
       {/* ── Orchestration status strip ── */}
-      <OrchestrationStrip
-        activeStep={effectiveActiveStep}
-        completedCount={effectiveCompletedCount}
-        elapsed={effectiveElapsed}
-        claim={claim}
-        isComplete={effectiveIsComplete}
-        workflowRun={workflowRun}
-      />
+      {workflowStarted && (
+        <OrchestrationStrip
+          activeStep={effectiveActiveStep}
+          completedCount={effectiveCompletedCount}
+          elapsed={effectiveElapsed}
+          claim={claim}
+          isComplete={effectiveIsComplete}
+          workflowRun={workflowRun}
+          approvalState={effectiveIsComplete ? approvalState : undefined}
+        />
+      )}
 
       {/* ── Journey canvas ── */}
-      {executionMode === 'autonomous' && (
+      {workflowStarted && executionMode === 'autonomous' && (
         <div style={{ padding: '28px 40px 0' }}>
           <AutonomousExecutionPanel
             autonomousStep={autonomousStep}
@@ -355,7 +425,7 @@ export default function PostFnolCoverageJourneyPage({ claim, onBack, onViewDocum
           />
         </div>
       )}
-      {executionMode === 'manual' && (
+      {workflowStarted && executionMode === 'manual' && (
       <div style={{ padding: '28px 40px 0' }}>
 
         {/* Section label row */}
@@ -444,7 +514,7 @@ export default function PostFnolCoverageJourneyPage({ claim, onBack, onViewDocum
       )}
 
       {/* ── Three-column row ── */}
-      <div className="grid grid-cols-3 gap-5" style={{ padding: '24px 40px 0' }}>
+      {workflowStarted && <div className="grid grid-cols-3 gap-5" style={{ padding: '24px 40px 0' }}>
         <AiPackageStatusPanel
           isComplete={effectiveIsComplete}
           capFlags={capFlags}
@@ -453,8 +523,8 @@ export default function PostFnolCoverageJourneyPage({ claim, onBack, onViewDocum
           approvalState={executionMode === 'autonomous' ? approvalState : undefined}
           approvalCommitStep={executionMode === 'autonomous' ? approvalCommitStep : 0}
           onApprove={handleApprove}
-          onRequestChanges={() => setApprovalState('returned')}
-          onReject={() => setApprovalState('rejected')}
+          onRequestChanges={handleRequestChanges}
+          onReject={handleReject}
         />
         <ArchitectureProofPanel
           backendStatus={backendStatus}
@@ -465,16 +535,16 @@ export default function PostFnolCoverageJourneyPage({ claim, onBack, onViewDocum
           isComplete={effectiveIsComplete}
           autonomousStep={executionMode === 'autonomous' ? autonomousStep : undefined}
         />
-      </div>
+      </div>}
 
       {/* ── Enterprise Actions Executed ── */}
-      <div style={{ padding: '20px 40px 0' }}>
+      {workflowStarted && <div style={{ padding: '20px 40px 0' }}>
         <EnterpriseAdapterLayerPanel
           backendStatus={backendStatus}
           workflowRun={workflowRun}
           approvalState={executionMode === 'autonomous' ? approvalState : undefined}
         />
-      </div>
+      </div>}
 
       {/* ── Completion banner ── */}
       <div
@@ -496,12 +566,19 @@ export default function PostFnolCoverageJourneyPage({ claim, onBack, onViewDocum
    Orchestration status strip
 ═══════════════════════════════════════════ */
 function OrchestrationStrip({
-  activeStep, completedCount, elapsed, claim, isComplete, workflowRun,
+  activeStep, completedCount, elapsed, claim, isComplete, workflowRun, approvalState,
 }: {
-  activeStep: number; completedCount: number; elapsed: number; claim: Claim; isComplete: boolean; workflowRun?: WorkflowRunResult | null;
+  activeStep: number; completedCount: number; elapsed: number; claim: Claim; isComplete: boolean; workflowRun?: WorkflowRunResult | null; approvalState?: ApprovalState;
 }) {
   const elapsedSec = (elapsed / 1000).toFixed(1);
-  const stage = STAGE_LABELS[Math.min(activeStep, 6)];
+
+  const stage = isComplete && approvalState
+    ? approvalState === 'approved'  ? 'Workflow Complete'
+    : approvalState === 'approving' ? 'Enterprise Commit'
+    : approvalState === 'returned'  ? 'Returned for Review'
+    : approvalState === 'rejected'  ? 'Execution Closed'
+    : 'Human Approval'
+    : STAGE_LABELS[Math.min(activeStep, 6)];
 
   // Use backend values when available and workflow is complete
   const backendReady = isComplete && !!workflowRun;
@@ -1707,7 +1784,7 @@ function AiPackageStatusPanel({
         <div className="border-t border-slate-100" style={{ padding: '8px 20px' }}>
           <p className="font-semibold text-slate-500" style={{ fontSize: 10 }}>
             Package Status:{' '}
-            <span className="text-amber-600 font-black">Governed Claim Package Ready · Awaiting Human Approval</span>
+            <span className="text-amber-600 font-black">Governed Claim Package Ready · Awaiting Documentation Review</span>
           </p>
           {workflowRun && (
             <p className="font-medium text-slate-400 mt-1" style={{ fontSize: 9 }}>
@@ -1739,11 +1816,11 @@ function ArchitectureProofPanel({
   const isConnecting = backendStatus === 'loading';
 
   const approvalLabel =
-    approvalState === 'approved'  ? 'Approved — Systems Written' :
+    approvalState === 'approved'  ? 'Approved' :
     approvalState === 'approving' ? 'Committing…' :
-    approvalState === 'returned'  ? 'Returned for Review' :
-    approvalState === 'rejected'  ? 'Rejected — Closed' :
-    approvalState === 'awaiting'  ? 'Pending Adjuster Decision' : undefined;
+    approvalState === 'returned'  ? 'Changes Requested' :
+    approvalState === 'rejected'  ? 'Rejected' :
+    approvalState === 'awaiting'  ? 'Pending' : undefined;
 
   const rows: { label: string; value: string; mono?: boolean; valueColor?: string; valueBg?: string; valueBorder?: string }[] = [
     {
@@ -1754,11 +1831,31 @@ function ArchitectureProofPanel({
       valueBorder: isConnected ? '#bbf7d0' : isConnecting ? '#bfdbfe' : '#fde68a',
     },
     {
-      label: 'Execution Status',
-      value: isConnected ? 'Completed' : isConnecting ? 'Running…' : 'Prototype Mode',
-      valueColor: isConnected ? '#059669' : isConnecting ? BLUE : '#92400e',
-      valueBg:    isConnected ? '#f0fdf4' : isConnecting ? '#eff6ff' : '#fffbeb',
-      valueBorder: isConnected ? '#bbf7d0' : isConnecting ? '#bfdbfe' : '#fde68a',
+      label: 'Runtime Status',
+      value: approvalState === 'approved'  ? 'Approved'
+           : approvalState === 'approving' ? 'Committing…'
+           : approvalState === 'returned'  ? 'Returned'
+           : approvalState === 'rejected'  ? 'Rejected'
+           : approvalState === 'awaiting'  ? 'Awaiting Approval'
+           : isConnected ? 'Completed' : isConnecting ? 'Running…' : 'Prototype Mode',
+      valueColor: approvalState === 'approved'  ? '#059669'
+                : approvalState === 'approving' ? BLUE
+                : approvalState === 'returned'  ? '#b45309'
+                : approvalState === 'rejected'  ? '#dc2626'
+                : approvalState === 'awaiting'  ? '#b45309'
+                : isConnected ? '#059669' : isConnecting ? BLUE : '#92400e',
+      valueBg:    approvalState === 'approved'  ? '#f0fdf4'
+                : approvalState === 'approving' ? '#eff6ff'
+                : approvalState === 'returned'  ? '#fffbeb'
+                : approvalState === 'rejected'  ? '#fef2f2'
+                : approvalState === 'awaiting'  ? '#fffbeb'
+                : isConnected ? '#f0fdf4' : isConnecting ? '#eff6ff' : '#fffbeb',
+      valueBorder: approvalState === 'approved'  ? '#bbf7d0'
+                 : approvalState === 'approving' ? '#bfdbfe'
+                 : approvalState === 'returned'  ? '#fde68a'
+                 : approvalState === 'rejected'  ? '#fecaca'
+                 : approvalState === 'awaiting'  ? '#fde68a'
+                 : isConnected ? '#bbf7d0' : isConnecting ? '#bfdbfe' : '#fde68a',
     },
     {
       label: 'Business Capabilities',
@@ -1778,10 +1875,22 @@ function ArchitectureProofPanel({
     },
     {
       label: 'Enterprise Connectors',
-      value: isConnected ? 'Mock MCP Active' : 'Prototype',
-      valueColor: isConnected ? '#059669' : '#92400e',
-      valueBg:    isConnected ? '#f0fdf4' : '#fffbeb',
-      valueBorder: isConnected ? '#bbf7d0' : '#fde68a',
+      value: approvalState === 'approved'  ? 'Committed'
+           : approvalState === 'returned' || approvalState === 'rejected' ? 'Cancelled'
+           : approvalState === 'awaiting' || approvalState === 'approving' ? 'Pending'
+           : isConnected ? 'Mock MCP Active' : 'Prototype',
+      valueColor: approvalState === 'approved'  ? '#059669'
+                : approvalState === 'returned' || approvalState === 'rejected' ? '#dc2626'
+                : approvalState === 'awaiting' || approvalState === 'approving' ? '#b45309'
+                : isConnected ? '#059669' : '#92400e',
+      valueBg:    approvalState === 'approved'  ? '#f0fdf4'
+                : approvalState === 'returned' || approvalState === 'rejected' ? '#fef2f2'
+                : approvalState === 'awaiting' || approvalState === 'approving' ? '#fffbeb'
+                : isConnected ? '#f0fdf4' : '#fffbeb',
+      valueBorder: approvalState === 'approved'  ? '#bbf7d0'
+                 : approvalState === 'returned' || approvalState === 'rejected' ? '#fecaca'
+                 : approvalState === 'awaiting' || approvalState === 'approving' ? '#fde68a'
+                 : isConnected ? '#bbf7d0' : '#fde68a',
     },
     {
       label: 'Execution ID',

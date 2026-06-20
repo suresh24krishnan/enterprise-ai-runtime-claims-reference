@@ -1,4 +1,4 @@
-export type ClaimStatus = 'Open' | 'In Progress' | 'Pending' | 'Closed' | 'Completed';
+export type ClaimStatus = 'Open' | 'In Progress' | 'Pending' | 'Closed' | 'Completed' | 'Running' | 'Awaiting Approval' | 'Returned' | 'Rejected';
 
 export interface Claim {
   id: string;
