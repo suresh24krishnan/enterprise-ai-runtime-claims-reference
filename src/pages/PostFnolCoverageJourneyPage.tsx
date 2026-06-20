@@ -26,6 +26,16 @@ interface Props {
 
 type ApprovalState = 'awaiting' | 'approving' | 'approved' | 'returned' | 'rejected';
 
+type WorkflowStage =
+  | 'NOT_STARTED'
+  | 'RUNNING'
+  | 'DOCUMENTATION_REVIEW'
+  | 'HUMAN_APPROVAL'
+  | 'ENTERPRISE_COMMIT'
+  | 'COMPLETED'
+  | 'RETURNED'
+  | 'REJECTED';
+
 /* ── Design tokens ── */
 const BLUE  = '#1976d2';
 const NAVY  = '#0f3460';
@@ -142,15 +152,16 @@ export default function PostFnolCoverageJourneyPage({ claim, onBack, onViewDocum
    *
    * When hasAnimated=true (subsequent visits), start directly at 6 (completed state).
    */
-  /* workflowStarted gates all execution — false until adjuster clicks Start Workflow */
-  const [workflowStarted, setWorkflowStarted] = useState(hasAnimated);
+  /* workflowStage: single source of truth for the entire workflow lifecycle */
+  const [workflowStage, setWorkflowStage] = useState<WorkflowStage>(hasAnimated ? 'DOCUMENTATION_REVIEW' : 'NOT_STARTED');
+  const workflowStarted = workflowStage !== 'NOT_STARTED';
 
   const [activeStep, setActiveStep] = useState(hasAnimated ? 6 : 0);
   const [elapsed, setElapsed] = useState(hasAnimated ? FINAL_ELAPSED : 0);
 
-  /* Sequential step advancement — only runs after Start Workflow is clicked */
+  /* Sequential step advancement — only runs when workflow transitions to RUNNING */
   useEffect(() => {
-    if (!workflowStarted || hasAnimated) return;
+    if (workflowStage !== 'RUNNING' || hasAnimated) return;
     const timers: ReturnType<typeof setTimeout>[] = [];
     for (let i = 1; i <= 6; i++) {
       timers.push(
@@ -158,13 +169,14 @@ export default function PostFnolCoverageJourneyPage({ claim, onBack, onViewDocum
           setActiveStep(i);
           if (i === 6) {
             onAnimationComplete();
+            setWorkflowStage('DOCUMENTATION_REVIEW');
             onWorkflowStatus?.('Awaiting Approval');
           }
         }, INITIAL_DELAY + (i - 1) * STEP_DELAY)
       );
     }
     return () => timers.forEach(clearTimeout);
-  }, [workflowStarted]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [workflowStage]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /* Elapsed time counter (stops at completion) */
   useEffect(() => {
@@ -187,7 +199,10 @@ export default function PostFnolCoverageJourneyPage({ claim, onBack, onViewDocum
     for (let i = 2; i <= 6; i++) {
       setTimeout(() => {
         setAutonomousStep(i);
-        if (i === 6) onWorkflowStatus?.('Awaiting Approval');
+        if (i === 6) {
+          setWorkflowStage('HUMAN_APPROVAL');
+          onWorkflowStatus?.('Awaiting Approval');
+        }
       }, (i - 1) * 1400);
     }
   }
@@ -200,25 +215,31 @@ export default function PostFnolCoverageJourneyPage({ claim, onBack, onViewDocum
 
   /* Single Start Workflow button — kicks off whichever mode is selected */
   function handleStartWorkflow() {
-    setWorkflowStarted(true);
+    setWorkflowStage('RUNNING');
     onWorkflowStatus?.('Running');
     if (executionMode === 'autonomous') {
       startAutonomous();
     }
   }
 
-  const [approvalState, setApprovalState] = useState<ApprovalState>('awaiting');
   const [approvalCommitStep, setApprovalCommitStep] = useState(0);
 
+  /* approvalState: derived from workflowStage — no independent state */
+  const approvalState: ApprovalState =
+    workflowStage === 'ENTERPRISE_COMMIT' ? 'approving'
+    : workflowStage === 'COMPLETED'       ? 'approved'
+    : workflowStage === 'RETURNED'        ? 'returned'
+    : workflowStage === 'REJECTED'        ? 'rejected'
+    : 'awaiting';
+
   function handleApprove() {
-    setApprovalState('approving');
+    setWorkflowStage('ENTERPRISE_COMMIT');
     setApprovalCommitStep(1);
-    onWorkflowStatus?.('Awaiting Approval');
     for (let i = 2; i <= 6; i++) {
       setTimeout(() => {
         setApprovalCommitStep(i);
         if (i === 6) {
-          setApprovalState('approved');
+          setWorkflowStage('COMPLETED');
           onWorkflowStatus?.('Completed');
         }
       }, (i - 1) * 800);
@@ -226,12 +247,12 @@ export default function PostFnolCoverageJourneyPage({ claim, onBack, onViewDocum
   }
 
   function handleRequestChanges() {
-    setApprovalState('returned');
+    setWorkflowStage('RETURNED');
     onWorkflowStatus?.('Returned');
   }
 
   function handleReject() {
-    setApprovalState('rejected');
+    setWorkflowStage('REJECTED');
     onWorkflowStatus?.('Rejected');
   }
 
@@ -411,7 +432,7 @@ export default function PostFnolCoverageJourneyPage({ claim, onBack, onViewDocum
           claim={claim}
           isComplete={effectiveIsComplete}
           workflowRun={workflowRun}
-          approvalState={effectiveIsComplete ? approvalState : undefined}
+          workflowStage={workflowStage}
         />
       )}
 
@@ -520,6 +541,7 @@ export default function PostFnolCoverageJourneyPage({ claim, onBack, onViewDocum
           capFlags={capFlags}
           workflowRun={workflowRun}
           claim={claim}
+          workflowStage={workflowStage}
           approvalState={approvalState}
           showReviewSections={executionMode === 'autonomous'}
           approvalCommitStep={executionMode === 'autonomous' ? approvalCommitStep : 0}
@@ -530,7 +552,7 @@ export default function PostFnolCoverageJourneyPage({ claim, onBack, onViewDocum
         <ArchitectureProofPanel
           backendStatus={backendStatus}
           workflowRun={workflowRun}
-          approvalState={executionMode === 'autonomous' && effectiveIsComplete ? approvalState : undefined}
+          approvalState={workflowStage === 'HUMAN_APPROVAL' || workflowStage === 'ENTERPRISE_COMMIT' || workflowStage === 'COMPLETED' || workflowStage === 'RETURNED' || workflowStage === 'REJECTED' ? approvalState : undefined}
         />
         <ManualEliminationBanner
           isComplete={effectiveIsComplete}
@@ -543,7 +565,7 @@ export default function PostFnolCoverageJourneyPage({ claim, onBack, onViewDocum
         <EnterpriseAdapterLayerPanel
           backendStatus={backendStatus}
           workflowRun={workflowRun}
-          approvalState={executionMode === 'autonomous' ? approvalState : undefined}
+          approvalState={workflowStage === 'HUMAN_APPROVAL' || workflowStage === 'ENTERPRISE_COMMIT' || workflowStage === 'COMPLETED' || workflowStage === 'RETURNED' || workflowStage === 'REJECTED' ? approvalState : undefined}
         />
       </div>}
 
@@ -567,18 +589,19 @@ export default function PostFnolCoverageJourneyPage({ claim, onBack, onViewDocum
    Orchestration status strip
 ═══════════════════════════════════════════ */
 function OrchestrationStrip({
-  activeStep, completedCount, elapsed, claim, isComplete, workflowRun, approvalState,
+  activeStep, completedCount, elapsed, claim, isComplete, workflowRun, workflowStage,
 }: {
-  activeStep: number; completedCount: number; elapsed: number; claim: Claim; isComplete: boolean; workflowRun?: WorkflowRunResult | null; approvalState?: ApprovalState;
+  activeStep: number; completedCount: number; elapsed: number; claim: Claim; isComplete: boolean; workflowRun?: WorkflowRunResult | null; workflowStage: WorkflowStage;
 }) {
   const elapsedSec = (elapsed / 1000).toFixed(1);
 
-  const stage = isComplete && approvalState
-    ? approvalState === 'approved'  ? 'Workflow Complete'
-    : approvalState === 'approving' ? 'Enterprise Commit'
-    : approvalState === 'returned'  ? 'Returned for Review'
-    : approvalState === 'rejected'  ? 'Execution Closed'
-    : 'Human Approval'
+  const stage =
+    workflowStage === 'COMPLETED'              ? 'Workflow Complete'
+    : workflowStage === 'ENTERPRISE_COMMIT'    ? 'Enterprise Commit'
+    : workflowStage === 'RETURNED'             ? 'Returned for Review'
+    : workflowStage === 'REJECTED'             ? 'Execution Closed'
+    : workflowStage === 'HUMAN_APPROVAL'       ? 'Human Approval'
+    : workflowStage === 'DOCUMENTATION_REVIEW' ? 'Documentation Review'
     : STAGE_LABELS[Math.min(activeStep, 6)];
 
   // Use backend values when available and workflow is complete
@@ -1552,25 +1575,24 @@ function ReviewSection({
   );
 }
 
-/* Shared helper — derives Package Status label from workflow lifecycle state */
-function packageStatusLabel(
-  isComplete: boolean,
-  approvalState: ApprovalState | undefined,
-  isManualMode: boolean
-): { text: string; color: string } {
-  if (!isComplete) return { text: 'Governed Claim Package Being Assembled', color: '#94a3b8' };
-  switch (approvalState) {
-    case 'approved':
-    case 'approving':
+/* Shared helper — derives Package Status label from single workflowStage source of truth */
+function packageStatusLabel(workflowStage: WorkflowStage): { text: string; color: string } {
+  switch (workflowStage) {
+    case 'NOT_STARTED':
+    case 'RUNNING':
+      return { text: 'Governed Claim Package Being Assembled', color: '#94a3b8' };
+    case 'DOCUMENTATION_REVIEW':
+      return { text: 'Governed Claim Package Ready · Awaiting Documentation Review', color: '#b45309' };
+    case 'HUMAN_APPROVAL':
+      return { text: 'Governed Claim Package Ready · Awaiting Human Approval', color: '#b45309' };
+    case 'ENTERPRISE_COMMIT':
+      return { text: 'Governed Claim Package Approved · Enterprise Commit in Progress', color: '#059669' };
+    case 'COMPLETED':
       return { text: 'Governed Claim Package Approved · Enterprise Commit Completed', color: '#059669' };
-    case 'returned':
+    case 'RETURNED':
       return { text: 'Governed Claim Package Returned · Awaiting Revision', color: '#b45309' };
-    case 'rejected':
+    case 'REJECTED':
       return { text: 'Governed Claim Package Rejected · Workflow Closed', color: '#dc2626' };
-    default:
-      return isManualMode
-        ? { text: 'Governed Claim Package Ready · Awaiting Documentation Review', color: '#b45309' }
-        : { text: 'Governed Claim Package Ready · Awaiting Human Approval', color: '#b45309' };
   }
 }
 
@@ -1579,6 +1601,7 @@ function AiPackageStatusPanel({
   capFlags,
   workflowRun,
   claim,
+  workflowStage,
   approvalState,
   showReviewSections,
   approvalCommitStep,
@@ -1590,6 +1613,7 @@ function AiPackageStatusPanel({
   capFlags: CapabilityFlags;
   workflowRun?: WorkflowRunResult | null;
   claim?: import('../types').Claim;
+  workflowStage?: WorkflowStage;
   approvalState?: ApprovalState;
   showReviewSections?: boolean;
   approvalCommitStep?: number;
@@ -1808,7 +1832,7 @@ function AiPackageStatusPanel({
       {isComplete && !isAutonomousMode && (
         <div className="border-t border-slate-100" style={{ padding: '8px 20px' }}>
           {(() => {
-            const { text, color } = packageStatusLabel(isComplete, approvalState, true);
+            const { text, color } = packageStatusLabel(workflowStage ?? 'DOCUMENTATION_REVIEW');
             return (
               <p className="font-semibold text-slate-500" style={{ fontSize: 10 }}>
                 Package Status:{' '}
