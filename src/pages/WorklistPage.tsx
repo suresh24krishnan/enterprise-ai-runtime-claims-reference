@@ -7,17 +7,9 @@ interface Props {
   claimStatusOverrides?: Record<string, ClaimStatus>;
 }
 
-/* ── Helpers ── */
+/* ── Constants ── */
 const slaAtRiskCount = claims.filter(c => c.slaDaysRemaining <= 5).length;
-
-function initials(name: string) {
-  return name.split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase();
-}
-
-const ADJUSTER_COLOR: Record<string, string> = {
-  'Sarah Mitchell': '#1976d2',
-  'James Torres':   '#4f46e5',
-};
+const DEMO_CLAIM_ID  = 'CLM-2024-0892';
 
 /* ── SVG icons ── */
 function IconClaims() {
@@ -50,8 +42,8 @@ function IconReserve() {
 function ClockSmall() {
   return (
     <svg width="11" height="11" viewBox="0 0 11 11" fill="none" aria-hidden="true">
-      <circle cx="5.5" cy="5.5" r="4.5" stroke="currentColor" strokeWidth="1.1"/>
-      <path d="M5.5 3v3l1.8 1.8" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" strokeLinejoin="round"/>
+      <circle cx="5.5" cy="5.5" r="4.5" stroke="currentColor" strokeWidth="1.15"/>
+      <path d="M5.5 3v3l1.8 1.8" stroke="currentColor" strokeWidth="1.15" strokeLinecap="round" strokeLinejoin="round"/>
     </svg>
   );
 }
@@ -80,26 +72,26 @@ function MetricCard({ label, value, sub, accent, subBg, subText, icon }: MetricC
       {/* Left accent stripe */}
       <div style={{ width: 4, background: accent, flexShrink: 0 }} />
 
-      <div className="flex items-center justify-between flex-1" style={{ padding: '18px 22px' }}>
+      <div className="flex items-center justify-between flex-1" style={{ padding: '14px 20px' }}>
         <div>
-          {/* Label */}
+          {/* Label — uppercase, tracking, very muted */}
           <p
-            className="font-bold uppercase tracking-widest text-slate-400 leading-none mb-3"
-            style={{ fontSize: 10 }}
+            className="font-bold uppercase tracking-widest leading-none mb-2.5"
+            style={{ fontSize: 9.5, color: '#94a3b8' }}
           >
             {label}
           </p>
-          {/* Value */}
+          {/* Primary value — strong, large */}
           <p
             className="font-bold leading-none tabular-nums"
-            style={{ fontSize: 30, color: accent, letterSpacing: '-0.02em' }}
+            style={{ fontSize: 32, color: accent, letterSpacing: '-0.025em' }}
           >
             {value}
           </p>
-          {/* Sub-chip */}
+          {/* Sub-chip — tight, small */}
           <span
             className="inline-block font-semibold mt-2 rounded-md leading-none"
-            style={{ fontSize: 11, padding: '3px 8px', background: subBg, color: subText }}
+            style={{ fontSize: 10.5, padding: '2px 7px', background: subBg, color: subText }}
           >
             {sub}
           </span>
@@ -108,12 +100,7 @@ function MetricCard({ label, value, sub, accent, subBg, subText, icon }: MetricC
         {/* Icon bubble */}
         <div
           className="flex items-center justify-center rounded-xl shrink-0"
-          style={{
-            width: 44,
-            height: 44,
-            background: subBg,
-            color: accent,
-          }}
+          style={{ width: 38, height: 38, background: subBg, color: accent }}
         >
           {icon}
         </div>
@@ -152,6 +139,17 @@ const METRIC_CARDS: MetricCardProps[] = [
   },
 ];
 
+/* ── Column definitions (7 columns, adjuster removed) ── */
+const COLUMNS = [
+  { label: 'Claim ID',     align: 'left'  as const, width: 148, pl: 24 },
+  { label: 'Claimant',     align: 'left'  as const },
+  { label: 'Loss Type',    align: 'left'  as const, width: 130 },
+  { label: 'Date of Loss', align: 'left'  as const, width: 114 },
+  { label: 'Status',       align: 'left'  as const, width: 148 },
+  { label: 'Reserve',      align: 'right' as const, width: 122 },
+  { label: 'SLA',          align: 'right' as const, width: 88, pr: 24 },
+];
+
 /* ── Main page ── */
 export default function WorklistPage({ onSelectClaim, claimStatusOverrides }: Props) {
   return (
@@ -166,8 +164,11 @@ export default function WorklistPage({ onSelectClaim, claimStatusOverrides }: Pr
           >
             Claims Worklist
           </h1>
-          <p className="text-sm text-slate-400 mt-1.5 font-normal leading-relaxed">
-            Select a claim below to open the Adjuster Workspace with QARL.
+          <p className="mt-1.5 font-normal leading-snug text-slate-500" style={{ fontSize: 13.5 }}>
+            Select a claim to begin AI-assisted claim review.
+          </p>
+          <p className="mt-1 font-medium text-slate-400" style={{ fontSize: 12 }}>
+            {claims.length} Active Claims &bull; {slaAtRiskCount} Approaching SLA
           </p>
         </div>
 
@@ -187,25 +188,22 @@ export default function WorklistPage({ onSelectClaim, claimStatusOverrides }: Pr
             boxShadow: '0 1px 2px rgba(0,0,0,0.04), 0 6px 20px rgba(15,52,96,0.06)',
           }}
         >
-          {/* Table header bar */}
+          {/* Table toolbar */}
           <div
             className="flex items-center justify-between border-b"
-            style={{ padding: '14px 24px', borderColor: '#f0f4f9' }}
+            style={{ padding: '13px 24px', borderColor: '#f0f4f9' }}
           >
             <div className="flex items-center gap-3">
-              <h2 className="font-bold text-[#0f3460]" style={{ fontSize: 14 }}>
+              <h2 className="font-bold text-[#0f3460]" style={{ fontSize: 13.5 }}>
                 Active Claims
               </h2>
-              <span
-                className="font-medium text-slate-400"
-                style={{ fontSize: 12 }}
-              >
+              <span className="font-medium text-slate-400" style={{ fontSize: 12 }}>
                 {claims.length} claims
               </span>
             </div>
             <div
               className="flex items-center gap-2 rounded-lg"
-              style={{ padding: '5px 12px', background: '#f0fdf4', border: '1px solid #bbf7d0' }}
+              style={{ padding: '4px 11px', background: '#f0fdf4', border: '1px solid #bbf7d0' }}
             >
               <span
                 className="rounded-full bg-emerald-500 shrink-0"
@@ -218,38 +216,22 @@ export default function WorklistPage({ onSelectClaim, claimStatusOverrides }: Pr
           </div>
 
           {/* Table */}
-          <table
-            className="w-full border-collapse"
-            style={{ tableLayout: 'fixed' }}
-          >
+          <table className="w-full border-collapse" style={{ tableLayout: 'fixed' }}>
             <colgroup>
-              <col style={{ width: 152 }} />
-              <col />
-              <col style={{ width: 136 }} />
-              <col style={{ width: 116 }} />
-              <col style={{ width: 148 }} />
-              <col style={{ width: 172 }} />
-              <col style={{ width: 120 }} />
-              <col style={{ width: 88 }} />
+              {COLUMNS.map(col => (
+                <col key={col.label} style={col.width ? { width: col.width } : undefined} />
+              ))}
             </colgroup>
 
             <thead>
               <tr style={{ background: '#f8fafc', borderBottom: '1px solid #f0f4f9' }}>
-                {[
-                  { label: 'Claim ID',    align: 'left'  as const, pl: 24 },
-                  { label: 'Claimant',    align: 'left'  as const },
-                  { label: 'Loss Type',   align: 'left'  as const },
-                  { label: 'Date of Loss',align: 'left'  as const },
-                  { label: 'Status',      align: 'left'  as const },
-                  { label: 'Adjuster',    align: 'left'  as const },
-                  { label: 'Reserve',     align: 'right' as const },
-                  { label: 'SLA',         align: 'right' as const, pr: 24 },
-                ].map(col => (
+                {COLUMNS.map(col => (
                   <th
                     key={col.label}
-                    className="font-semibold text-slate-400 uppercase tracking-widest whitespace-nowrap"
+                    className="font-semibold uppercase tracking-widest whitespace-nowrap"
                     style={{
-                      fontSize: 10,
+                      fontSize: 9.5,
+                      color: '#94a3b8',
                       padding: `10px ${col.pr ?? 12}px 10px ${col.pl ?? 12}px`,
                       textAlign: col.align,
                     }}
@@ -262,41 +244,51 @@ export default function WorklistPage({ onSelectClaim, claimStatusOverrides }: Pr
 
             <tbody>
               {claims.map((claim) => {
-                const status    = claimStatusOverrides?.[claim.id] ?? claim.status;
-                const slaUrgent = claim.slaDaysRemaining <= 5;
-                const adjColor  = ADJUSTER_COLOR[claim.assignedAdjuster] ?? '#475569';
-                const adj       = initials(claim.assignedAdjuster);
+                const status     = claimStatusOverrides?.[claim.id] ?? claim.status;
+                const slaUrgent  = claim.slaDaysRemaining <= 5;
+                const isPrimary  = claim.id === DEMO_CLAIM_ID;
 
                 return (
                   <tr
                     key={claim.id}
                     onClick={() => onSelectClaim(claim)}
-                    className="group relative cursor-pointer select-none transition-colors duration-100"
+                    className="group relative cursor-pointer"
                     style={{
                       borderBottom: '1px solid #f0f4f9',
+                      transition: 'background 80ms ease',
+                      background: isPrimary ? '#fffcf8' : undefined,
                     }}
-                    onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = '#f8fbff'; }}
-                    onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = ''; }}
+                    onMouseEnter={e => {
+                      (e.currentTarget as HTMLElement).style.background = isPrimary ? '#fff8ed' : '#f8fbff';
+                    }}
+                    onMouseLeave={e => {
+                      (e.currentTarget as HTMLElement).style.background = isPrimary ? '#fffcf8' : '';
+                    }}
                   >
-                    {/* Hover accent line — absolute, left edge */}
-                    <td
-                      className="relative"
-                      style={{ padding: '14px 12px 14px 24px' }}
-                    >
+                    {/* Claim ID — muted, smaller, secondary */}
+                    <td className="relative" style={{ padding: '13px 12px 13px 24px' }}>
+                      {/* Left accent: amber always for primary, blue on hover for others */}
                       <span
-                        className="absolute left-0 top-0 h-full rounded-r opacity-0 group-hover:opacity-100 transition-opacity duration-100"
-                        style={{ width: 3, background: '#1976d2' }}
+                        className={`absolute left-0 top-0 h-full rounded-r ${
+                          isPrimary
+                            ? 'opacity-100'
+                            : 'opacity-0 group-hover:opacity-100'
+                        }`}
+                        style={{
+                          width: 3,
+                          background: isPrimary ? '#d97706' : '#1976d2',
+                          transition: 'opacity 80ms ease',
+                        }}
                         aria-hidden="true"
                       />
-                      {/* Claim ID chip */}
                       <span
-                        className="font-mono font-semibold rounded-lg inline-block"
+                        className="font-mono font-medium rounded-md inline-block"
                         style={{
-                          fontSize: 11,
-                          padding: '3px 9px',
-                          background: '#eff6ff',
-                          color: '#1976d2',
-                          border: '1px solid #dbeafe',
+                          fontSize: 10.5,
+                          padding: '2px 8px',
+                          background: '#f1f5f9',
+                          color: '#64748b',
+                          border: '1px solid #e2e8f0',
                           letterSpacing: '0.01em',
                         }}
                       >
@@ -304,23 +296,23 @@ export default function WorklistPage({ onSelectClaim, claimStatusOverrides }: Pr
                       </span>
                     </td>
 
-                    {/* Claimant */}
-                    <td style={{ padding: '14px 12px' }}>
+                    {/* Claimant — primary identity, more prominent */}
+                    <td style={{ padding: '13px 12px' }}>
                       <span
-                        className="font-semibold text-[#0f3460] leading-snug block truncate"
-                        style={{ fontSize: 13 }}
+                        className="font-semibold text-[#0f3460] block truncate"
+                        style={{ fontSize: 14 }}
                       >
                         {claim.claimantName}
                       </span>
                     </td>
 
-                    {/* Loss Type */}
-                    <td style={{ padding: '14px 12px' }}>
+                    {/* Loss Type — metadata pill, compact */}
+                    <td style={{ padding: '13px 12px' }}>
                       <span
                         className="font-medium rounded-md inline-block"
                         style={{
-                          fontSize: 11,
-                          padding: '3px 9px',
+                          fontSize: 10.5,
+                          padding: '2px 8px',
                           background: '#f1f5f9',
                           color: '#475569',
                           border: '1px solid #e2e8f0',
@@ -331,47 +323,19 @@ export default function WorklistPage({ onSelectClaim, claimStatusOverrides }: Pr
                     </td>
 
                     {/* Date of Loss */}
-                    <td style={{ padding: '14px 12px' }}>
-                      <span
-                        className="text-slate-500 tabular-nums"
-                        style={{ fontSize: 12 }}
-                      >
+                    <td style={{ padding: '13px 12px' }}>
+                      <span className="tabular-nums text-slate-400" style={{ fontSize: 12 }}>
                         {claim.dateOfLoss}
                       </span>
                     </td>
 
                     {/* Status */}
-                    <td style={{ padding: '14px 12px' }}>
+                    <td style={{ padding: '13px 12px' }}>
                       <StatusBadge status={status} />
                     </td>
 
-                    {/* Adjuster — avatar + name */}
-                    <td style={{ padding: '14px 12px' }}>
-                      <div className="flex items-center gap-2.5">
-                        <div
-                          className="rounded-full flex items-center justify-center shrink-0 font-bold text-white"
-                          style={{
-                            width: 26,
-                            height: 26,
-                            background: adjColor,
-                            fontSize: 9,
-                            letterSpacing: '0.04em',
-                            opacity: 0.85,
-                          }}
-                        >
-                          {adj}
-                        </div>
-                        <span
-                          className="text-slate-600 font-medium truncate"
-                          style={{ fontSize: 12 }}
-                        >
-                          {claim.assignedAdjuster}
-                        </span>
-                      </div>
-                    </td>
-
-                    {/* Reserve — right-aligned */}
-                    <td style={{ padding: '14px 12px', textAlign: 'right' }}>
+                    {/* Reserve */}
+                    <td style={{ padding: '13px 12px', textAlign: 'right' }}>
                       <span
                         className="font-semibold tabular-nums text-[#0f3460]"
                         style={{ fontSize: 13 }}
@@ -380,11 +344,11 @@ export default function WorklistPage({ onSelectClaim, claimStatusOverrides }: Pr
                       </span>
                     </td>
 
-                    {/* SLA — right-aligned, urgent pill or muted */}
-                    <td style={{ padding: '14px 24px 14px 12px', textAlign: 'right' }}>
+                    {/* SLA */}
+                    <td style={{ padding: '13px 24px 13px 12px', textAlign: 'right' }}>
                       {slaUrgent ? (
                         <span
-                          className="inline-flex items-center justify-end gap-1 font-semibold tabular-nums rounded-md"
+                          className="inline-flex items-center justify-end gap-1 font-bold tabular-nums rounded-md"
                           style={{
                             fontSize: 11,
                             padding: '3px 8px',
@@ -397,10 +361,7 @@ export default function WorklistPage({ onSelectClaim, claimStatusOverrides }: Pr
                           {claim.slaDaysRemaining}d
                         </span>
                       ) : (
-                        <span
-                          className="font-medium tabular-nums text-slate-400"
-                          style={{ fontSize: 12 }}
-                        >
+                        <span className="font-medium tabular-nums text-slate-400" style={{ fontSize: 12 }}>
                           {claim.slaDaysRemaining}d
                         </span>
                       )}

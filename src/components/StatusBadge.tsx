@@ -19,10 +19,10 @@ export default function StatusBadge({ status }: { status: ClaimStatus }) {
     <span
       className="inline-flex items-center gap-1.5"
       style={{
-        fontSize: 12,
+        fontSize: 11.5,
         fontWeight: 500,
-        padding: '3px 10px',
-        borderRadius: 8,
+        padding: '2px 9px',
+        borderRadius: 7,
         background: s.bg,
         color: s.text,
       }}
