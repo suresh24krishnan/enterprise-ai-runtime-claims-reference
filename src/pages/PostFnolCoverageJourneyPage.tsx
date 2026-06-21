@@ -129,11 +129,10 @@ const STAGE_LABELS = [
 ];
 
 const MANUAL_TASKS = [
-  { label: 'Rigid Script Reading', icon: <DocIcon /> },
-  { label: 'Login to Policy Center', icon: <LoginIcon /> },
-  { label: 'Manual Data Entry', icon: <KeyboardIcon /> },
-  { label: 'Manual Routing', icon: <RouteIcon /> },
-  { label: 'Writing Emails', icon: <MailIcon /> },
+  { label: 'Policy Lookup',          icon: <DocIcon /> },
+  { label: 'Data Entry',             icon: <KeyboardIcon /> },
+  { label: 'Routing & Coordination', icon: <RouteIcon /> },
+  { label: 'Email Preparation',      icon: <MailIcon /> },
 ];
 
 /* ═══════════════════════════════════════════
@@ -615,9 +614,6 @@ function OrchestrationStrip({
 
   // Use backend values when available and workflow is complete
   const backendReady = isComplete && !!workflowRun;
-  const capExec    = backendReady ? `${workflowRun!.capabilitiesExecuted} / 5` : `${completedCount} / 5`;
-  // Always show 5 / 5 — represents the five business capabilities, not internal audit event counts
-  const manualElim = '5 / 5';
   const confidence = backendReady ? `${workflowRun!.coverageConfidence}%` : completedCount >= 1 ? '98%' : '—';
   // Sub-second backend times reflect pure compute, not the full adjuster interaction window.
   // Show animation elapsed time when backend completes in < 1000 ms for accurate presentation.
@@ -626,11 +622,9 @@ function OrchestrationStrip({
     : isComplete ? `${elapsedSec}s` : `${elapsedSec}s…`;
 
   const stats = [
-    { label: 'Current Stage',            value: stage,       mono: false },
-    { label: 'AI Capabilities Executed', value: capExec,     mono: true  },
-    { label: 'Manual Steps Eliminated',  value: manualElim,  mono: true  },
-    { label: 'Coverage Confidence',      value: confidence,  mono: true  },
-    { label: 'Execution Time',           value: execTime,    mono: true  },
+    { label: 'Current Stage',       value: stage,      mono: false },
+    { label: 'Coverage Confidence', value: confidence, mono: true  },
+    { label: 'Execution Time',      value: execTime,   mono: true  },
   ];
 
   return (
@@ -1485,34 +1479,6 @@ function StatusPill({ status, capCompleted }: { status: CardStatus; capCompleted
   );
 }
 
-/* ── Checklist row helper ── */
-function CheckRow({ done, text }: { done: boolean; text: string }) {
-  return (
-    <div className="flex items-center gap-2.5">
-      {done ? (
-        <div
-          className="rounded-full bg-emerald-100 flex items-center justify-center shrink-0"
-          style={{ width: 15, height: 15 }}
-        >
-          <svg width="8" height="8" viewBox="0 0 8 8" fill="none">
-            <path d="M1.5 4l1.5 1.5L6.5 2" stroke="#059669" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
-          </svg>
-        </div>
-      ) : (
-        <div
-          className="rounded-full border border-slate-300 shrink-0"
-          style={{ width: 15, height: 15 }}
-        />
-      )}
-      <span
-        className="font-medium leading-none"
-        style={{ fontSize: 11, color: done ? '#374151' : '#94a3b8' }}
-      >
-        {text}
-      </span>
-    </div>
-  );
-}
 
 /* ═══════════════════════════════════════════
    AI Package Status panel
@@ -1607,7 +1573,7 @@ function packageStatusLabel(workflowStage: WorkflowStage): { text: string; color
 
 function AiPackageStatusPanel({
   isComplete,
-  capFlags,
+  capFlags: _capFlags,
   workflowRun,
   claim,
   workflowStage,
@@ -1801,25 +1767,17 @@ function AiPackageStatusPanel({
             </div>
           </div>
         ) : (
-          /* ── Manual mode: simple checklist ── */
-          <div className="space-y-2 pb-3">
-            <CheckRow done text="Coverage verification completed" />
-            <CheckRow done text="Documentation package prepared" />
-            <CheckRow
-              done={capFlags.multiPartyAdded}
-              text={capFlags.multiPartyAdded ? 'Multi-party coordination added' : 'Multi-party coordination available'}
-            />
-            {capFlags.documentationVisited && (
-              <CheckRow done text="Documentation opened for review" />
-            )}
-            <CheckRow
-              done={capFlags.enrichmentAdded}
-              text={capFlags.enrichmentAdded ? 'Auto-enrichment added' : 'Auto-enrichment available'}
-            />
-            <CheckRow
-              done={capFlags.alertsAdded}
-              text={capFlags.alertsAdded ? 'Auto-alerts configured' : 'Auto-alert setup available'}
-            />
+          /* ── Manual mode: compact package status ── */
+          <div className="pb-4">
+            <p className="font-black text-[#0f3460] mb-1" style={{ fontSize: 13 }}>
+              Governed Claim Package Ready
+            </p>
+            <p className="font-medium text-slate-500 mb-0.5" style={{ fontSize: 11 }}>
+              5 capability outputs assembled
+            </p>
+            <p className="font-medium text-slate-400" style={{ fontSize: 11 }}>
+              Awaiting documentation review
+            </p>
           </div>
         )}
       </div>
@@ -2061,7 +2019,7 @@ function ManualEliminationBanner({ isComplete, autonomousStep }: { isComplete: b
             </svg>
           </div>
           <p className="font-black text-[#0f3460]" style={{ fontSize: 12 }}>
-            Manual Lookups Not Required
+            Manual Tasks Automated
           </p>
         </div>
         <span
@@ -2137,6 +2095,10 @@ const TRACE_EVENTS: { system: string; event: string; warn?: boolean }[] = [
   { system: 'ClaimCenter',  event: 'Claim note prepared — awaiting adjuster approval', warn: true },
   { system: 'Event Bus',    event: 'Governance audit trail recorded'                              },
 ];
+
+/* Latest 3 meaningful events shown in the trace preview (pre-approval state).
+   Derived from TRACE_EVENTS so underlying data is preserved and referenced. */
+const TRACE_PREVIEW = [TRACE_EVENTS[4], TRACE_EVENTS[3], TRACE_EVENTS[5]];
 
 const DIR_STYLE: Record<string, { color: string; bg: string; border: string }> = {
   read:    { color: '#1d4ed8', bg: '#eff6ff', border: '#bfdbfe' },
@@ -2283,7 +2245,7 @@ function EnterpriseAdapterLayerPanel({
               { system: 'Outlook',      event: 'Notification draft discarded — not approved', warn: true },
               { system: 'ClaimCenter',  event: isReturned ? 'Package returned for revision' : 'Package rejected — execution closed', warn: true },
               { system: 'Event Bus',    event: 'Governance audit trail recorded' },
-            ] : TRACE_EVENTS).map((ev, i) => (
+            ] : TRACE_PREVIEW).map((ev, i) => (
               <div
                 key={i}
                 className="flex items-center gap-2.5 rounded-lg"
@@ -2328,6 +2290,18 @@ function EnterpriseAdapterLayerPanel({
               </div>
             ))}
           </div>
+
+          {/* View full trace — display only, shown in pre-approval state */}
+          {!isApproved && !isRejected && !isReturned && (
+            <div className="mt-2">
+              <span
+                className="font-semibold text-[#1976d2]"
+                style={{ fontSize: 9.5, cursor: 'default', opacity: 0.75 }}
+              >
+                View Full Trace →
+              </span>
+            </div>
+          )}
 
           {/* Connection state note */}
           <div className="mt-3 flex items-center gap-1.5">
@@ -2482,14 +2456,6 @@ function DocIcon() {
   );
 }
 
-function LoginIcon() {
-  return (
-    <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-      <rect x="10" y="3" width="7" height="14" rx="1.5" stroke="#94a3b8" strokeWidth="1.4"/>
-      <path d="M13 10H3m0 0l3-3m-3 3l3 3" stroke="#94a3b8" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
-    </svg>
-  );
-}
 
 function KeyboardIcon() {
   return (
