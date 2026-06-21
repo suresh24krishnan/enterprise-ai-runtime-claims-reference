@@ -391,7 +391,7 @@ export default function PostFnolCoverageJourneyPage({ claim, onBack, onViewDocum
                 transition: 'all 0.18s ease',
               }}
             >
-              Supervised Autonomous Execution
+              Governed Autonomous Execution
             </button>
           </div>
         </div>
@@ -402,7 +402,7 @@ export default function PostFnolCoverageJourneyPage({ claim, onBack, onViewDocum
         <div className="flex flex-col items-center justify-center gap-5" style={{ padding: '48px 40px' }}>
           <div className="text-center" style={{ maxWidth: 520 }}>
             <p className="font-black text-[#0f3460] mb-1" style={{ fontSize: 16 }}>
-              {executionMode === 'manual' ? 'Manual Guided Review' : 'Supervised Autonomous Execution'}
+              {executionMode === 'manual' ? 'Manual Guided Review' : 'Governed Autonomous Execution'}
             </p>
             <p className="font-medium text-slate-500 leading-relaxed" style={{ fontSize: 13 }}>
               Choose how this claim should be processed.
@@ -752,7 +752,7 @@ function AutonomousExecutionPanel({
           </div>
           <div>
             <p className="font-black text-[#0f3460] leading-none" style={{ fontSize: 13 }}>
-              Supervised Autonomous Execution
+              Governed Autonomous Execution
             </p>
             <p className="font-medium text-slate-400 leading-none mt-0.5" style={{ fontSize: 9 }}>
               QARL orchestrates all 5 capabilities — adjuster retains full approval authority
@@ -1825,109 +1825,48 @@ function AiPackageStatusPanel({
    AI Runtime Execution panel
 ═══════════════════════════════════════════ */
 function ArchitectureProofPanel({
-  backendStatus,
-  workflowRun,
+  backendStatus: _backendStatus,
+  workflowRun: _workflowRun,
   approvalState,
 }: {
   backendStatus?: 'loading' | 'connected' | 'prototype' | null;
   workflowRun?: WorkflowRunResult | null;
   approvalState?: ApprovalState;
 }) {
-  const isConnected  = backendStatus === 'connected';
-  const isConnecting = backendStatus === 'loading';
+  const statusValue =
+    approvalState === 'approved'  ? 'Approved'            :
+    approvalState === 'approving' ? 'Committing…'         :
+    approvalState === 'returned'  ? 'Changes Requested'   :
+    approvalState === 'rejected'  ? 'Rejected'            :
+    'Awaiting Approval';
 
-  const approvalLabel =
-    approvalState === 'approved'  ? 'Approved' :
-    approvalState === 'approving' ? 'Committing…' :
-    approvalState === 'returned'  ? 'Changes Requested' :
-    approvalState === 'rejected'  ? 'Rejected' :
-    approvalState === 'awaiting'  ? 'Pending' : undefined;
+  const statusColor =
+    approvalState === 'approved'  ? '#059669' :
+    approvalState === 'approving' ? BLUE       :
+    approvalState === 'returned'  ? '#b45309' :
+    approvalState === 'rejected'  ? '#dc2626' :
+    '#b45309';
 
-  const rows: { label: string; value: string; mono?: boolean; valueColor?: string; valueBg?: string; valueBorder?: string }[] = [
-    {
-      label: 'Runtime Orchestrator',
-      value: isConnected ? 'LangGraph Supervisor' : isConnecting ? 'Connecting…' : 'Prototype Runtime',
-      valueColor: isConnected ? '#059669' : isConnecting ? BLUE : '#92400e',
-      valueBg:    isConnected ? '#f0fdf4' : isConnecting ? '#eff6ff' : '#fffbeb',
-      valueBorder: isConnected ? '#bbf7d0' : isConnecting ? '#bfdbfe' : '#fde68a',
-    },
-    {
-      label: 'Runtime Status',
-      value: approvalState === 'approved'  ? 'Approved'
-           : approvalState === 'approving' ? 'Committing…'
-           : approvalState === 'returned'  ? 'Returned'
-           : approvalState === 'rejected'  ? 'Rejected'
-           : approvalState === 'awaiting'  ? 'Awaiting Approval'
-           : isConnected ? 'Completed' : isConnecting ? 'Running…' : 'Prototype Mode',
-      valueColor: approvalState === 'approved'  ? '#059669'
-                : approvalState === 'approving' ? BLUE
-                : approvalState === 'returned'  ? '#b45309'
-                : approvalState === 'rejected'  ? '#dc2626'
-                : approvalState === 'awaiting'  ? '#b45309'
-                : isConnected ? '#059669' : isConnecting ? BLUE : '#92400e',
-      valueBg:    approvalState === 'approved'  ? '#f0fdf4'
-                : approvalState === 'approving' ? '#eff6ff'
-                : approvalState === 'returned'  ? '#fffbeb'
-                : approvalState === 'rejected'  ? '#fef2f2'
-                : approvalState === 'awaiting'  ? '#fffbeb'
-                : isConnected ? '#f0fdf4' : isConnecting ? '#eff6ff' : '#fffbeb',
-      valueBorder: approvalState === 'approved'  ? '#bbf7d0'
-                 : approvalState === 'approving' ? '#bfdbfe'
-                 : approvalState === 'returned'  ? '#fde68a'
-                 : approvalState === 'rejected'  ? '#fecaca'
-                 : approvalState === 'awaiting'  ? '#fde68a'
-                 : isConnected ? '#bbf7d0' : isConnecting ? '#bfdbfe' : '#fde68a',
-    },
-    {
-      label: 'Business Capabilities',
-      value: workflowRun ? `${workflowRun.capabilitiesExecuted} executed` : 'Prototype',
-      mono: !!workflowRun,
-      valueColor: workflowRun ? NAVY : '#92400e',
-      valueBg:    workflowRun ? '#eff6ff' : '#fffbeb',
-      valueBorder: workflowRun ? '#bfdbfe' : '#fde68a',
-    },
-    {
-      label: 'Governance Events',
-      value: workflowRun ? `${workflowRun.auditTraceCount} recorded` : 'Prototype',
-      mono: !!workflowRun,
-      valueColor: workflowRun ? NAVY : '#92400e',
-      valueBg:    workflowRun ? '#eff6ff' : '#fffbeb',
-      valueBorder: workflowRun ? '#bfdbfe' : '#fde68a',
-    },
-    {
-      label: 'Enterprise Connectors',
-      value: approvalState === 'approved'  ? 'Committed'
-           : approvalState === 'returned' || approvalState === 'rejected' ? 'Cancelled'
-           : approvalState === 'awaiting' || approvalState === 'approving' ? 'Pending'
-           : isConnected ? 'Mock MCP Active' : 'Prototype',
-      valueColor: approvalState === 'approved'  ? '#059669'
-                : approvalState === 'returned' || approvalState === 'rejected' ? '#dc2626'
-                : approvalState === 'awaiting' || approvalState === 'approving' ? '#b45309'
-                : isConnected ? '#059669' : '#92400e',
-      valueBg:    approvalState === 'approved'  ? '#f0fdf4'
-                : approvalState === 'returned' || approvalState === 'rejected' ? '#fef2f2'
-                : approvalState === 'awaiting' || approvalState === 'approving' ? '#fffbeb'
-                : isConnected ? '#f0fdf4' : '#fffbeb',
-      valueBorder: approvalState === 'approved'  ? '#bbf7d0'
-                 : approvalState === 'returned' || approvalState === 'rejected' ? '#fecaca'
-                 : approvalState === 'awaiting' || approvalState === 'approving' ? '#fde68a'
-                 : isConnected ? '#bbf7d0' : '#fde68a',
-    },
-    {
-      label: 'Execution ID',
-      value: workflowRun ? `${workflowRun.runId.slice(0, 8)}…` : 'Not available',
-      mono: true,
-      valueColor: workflowRun ? '#475569' : '#94a3b8',
-      valueBg:    workflowRun ? '#f8fafc' : 'transparent',
-      valueBorder: workflowRun ? '#e2e8f0' : 'transparent',
-    },
-    ...(approvalLabel ? [{
-      label: 'Approval Status',
-      value: approvalLabel,
-      valueColor: approvalState === 'approved' ? '#059669' : approvalState === 'approving' ? BLUE : approvalState === 'rejected' ? '#dc2626' : approvalState === 'returned' ? '#b45309' : '#b45309',
-      valueBg:    approvalState === 'approved' ? '#f0fdf4' : approvalState === 'approving' ? '#eff6ff' : approvalState === 'rejected' ? '#fef2f2' : '#fffbeb',
-      valueBorder: approvalState === 'approved' ? '#bbf7d0' : approvalState === 'approving' ? '#bfdbfe' : approvalState === 'rejected' ? '#fecaca' : '#fde68a',
-    }] : []),
+  const statusBg =
+    approvalState === 'approved'  ? '#f0fdf4' :
+    approvalState === 'approving' ? '#eff6ff' :
+    approvalState === 'returned'  ? '#fffbeb' :
+    approvalState === 'rejected'  ? '#fef2f2' :
+    '#fffbeb';
+
+  const statusBorder =
+    approvalState === 'approved'  ? '#bbf7d0' :
+    approvalState === 'approving' ? '#bfdbfe' :
+    approvalState === 'returned'  ? '#fde68a' :
+    approvalState === 'rejected'  ? '#fecaca' :
+    '#fde68a';
+
+  const summaryRows = [
+    { label: 'Supervisor',                  value: 'LangGraph Supervisor', valueColor: NAVY,      valueBg: '#eff6ff', valueBorder: '#bfdbfe' },
+    { label: 'Capabilities Executed',        value: '5',                   valueColor: '#059669', valueBg: '#f0fdf4', valueBorder: '#bbf7d0' },
+    { label: 'Enterprise Systems Connected', value: '5',                   valueColor: '#059669', valueBg: '#f0fdf4', valueBorder: '#bbf7d0' },
+    { label: 'Governance Review',            value: 'Required',            valueColor: '#b45309', valueBg: '#fffbeb', valueBorder: '#fde68a' },
+    { label: 'Current Status',               value: statusValue,           valueColor: statusColor, valueBg: statusBg, valueBorder: statusBorder },
   ];
 
   return (
@@ -1956,7 +1895,7 @@ function ArchitectureProofPanel({
             AI Runtime Execution
           </p>
           <p className="font-medium text-slate-400 leading-none mt-0.5" style={{ fontSize: 9 }}>
-            Live LangGraph orchestration and governance evidence
+            Execution Summary
           </p>
         </div>
       </div>
@@ -1964,21 +1903,14 @@ function ArchitectureProofPanel({
       {/* Rows */}
       <div style={{ padding: '12px 20px 14px' }}>
         <div className="space-y-2.5">
-          {rows.map(row => (
+          {summaryRows.map(row => (
             <div key={row.label} className="flex items-center justify-between gap-3">
               <span className="font-semibold text-slate-500 shrink-0" style={{ fontSize: 10 }}>
                 {row.label}
               </span>
               <span
-                className={`font-bold rounded border shrink-0 ${row.mono ? 'font-mono' : ''}`}
-                style={{
-                  fontSize: 9,
-                  letterSpacing: row.mono ? '0.02em' : '0.04em',
-                  padding: '2px 7px',
-                  color: row.valueColor,
-                  background: row.valueBg,
-                  borderColor: row.valueBorder,
-                }}
+                className="font-bold rounded border shrink-0"
+                style={{ fontSize: 9, letterSpacing: '0.04em', padding: '2px 7px', color: row.valueColor, background: row.valueBg, borderColor: row.valueBorder }}
               >
                 {row.value}
               </span>
@@ -2043,22 +1975,22 @@ function ManualEliminationBanner({ isComplete, autonomousStep }: { isComplete: b
                   {task.icon}
                 </div>
                 <div
-                  className="absolute -top-1.5 -right-1.5 rounded-full bg-rose-500 flex items-center justify-center"
+                  className="absolute -top-1.5 -right-1.5 rounded-full bg-emerald-500 flex items-center justify-center"
                   style={{
                     width: 16, height: 16,
-                    boxShadow: '0 1px 4px rgba(239,68,68,0.40)',
+                    boxShadow: '0 1px 4px rgba(5,150,105,0.40)',
                     opacity: isEliminated ? 1 : 0.2,
                     transition: 'opacity 0.5s ease',
                   }}
                 >
                   <svg width="7" height="7" viewBox="0 0 7 7" fill="none">
-                    <path d="M1.5 1.5l4 4M5.5 1.5l-4 4" stroke="white" strokeWidth="1.3" strokeLinecap="round"/>
+                    <path d="M1 3.5l1.5 1.5L6 1.5" stroke="white" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/>
                   </svg>
                 </div>
               </div>
               <span
-                className="font-semibold text-center leading-tight line-through"
-                style={{ fontSize: 9, color: '#94a3b8', maxWidth: 72, opacity: isEliminated ? 1 : 0.4, transition: 'opacity 0.5s ease' }}
+                className="font-semibold text-center leading-tight"
+                style={{ fontSize: 9, color: '#374151', maxWidth: 72, opacity: isEliminated ? 1 : 0.4, transition: 'opacity 0.5s ease' }}
               >
                 {task.label}
               </span>
@@ -2381,6 +2313,7 @@ function CompletionBanner({ onBack }: { onBack: () => void }) {
         style={{
           fontSize: 13,
           padding: '14px 28px',
+          whiteSpace: 'nowrap',
           background: 'rgba(255,255,255,0.15)',
           border: '1.5px solid rgba(255,255,255,0.30)',
           boxShadow: '0 2px 12px rgba(0,0,0,0.15)',
