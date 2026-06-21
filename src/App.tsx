@@ -5,6 +5,7 @@ import NavBar from './components/NavBar';
 import WorklistPage from './pages/WorklistPage';
 import ClaimDetailPage from './pages/ClaimDetailPage';
 import PostFnolCoverageJourneyPage from './pages/PostFnolCoverageJourneyPage';
+import type { AutonomousJourneyState } from './pages/PostFnolCoverageJourneyPage';
 import InteractiveDocumentationPage from './pages/InteractiveDocumentationPage';
 import MultiPartyConversationPage from './pages/MultiPartyConversationPage';
 import AutoEnrichmentsPage from './pages/AutoEnrichmentsPage';
@@ -70,6 +71,8 @@ export default function App() {
   const [backendStatusMap, setBackendStatusMap] = useState<Record<string, 'loading' | 'connected' | 'prototype'>>({});
   // Per-claim workflow lifecycle status (single source of truth for worklist)
   const [workflowStatusMap, setWorkflowStatusMap] = useState<Record<string, ClaimStatus>>({});
+  // Per-claim autonomous journey state (persists across worklist navigation)
+  const [autonomousStateMap, setAutonomousStateMap] = useState<Record<string, AutonomousJourneyState>>({});
 
   const handleSelectClaim = (claim: Claim) => {
     const isNewClaim = claim.id !== lastClaimIdRef.current;
@@ -194,6 +197,11 @@ export default function App() {
           onWorkflowStatus={(status) => {
             const claimId = activeClaim.id;
             setWorkflowStatusMap(prev => ({ ...prev, [claimId]: status }));
+          }}
+          initialAutonomousState={autonomousStateMap[activeClaim.id] ?? null}
+          onAutonomousStateChange={(s) => {
+            const claimId = activeClaim.id;
+            setAutonomousStateMap(prev => ({ ...prev, [claimId]: s }));
           }}
         />
       ) : (

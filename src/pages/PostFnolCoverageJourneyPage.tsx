@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import type { Claim, ClaimStatus } from '../types';
 import type { WorkflowRunResult } from '../services/qarlApi';
 
@@ -23,11 +23,13 @@ interface Props {
   backendStatus?: 'loading' | 'connected' | 'prototype' | null;
   onWorkflowStatus?: (status: ClaimStatus) => void;
   claimCenterWritten?: boolean;
+  initialAutonomousState?: AutonomousJourneyState | null;
+  onAutonomousStateChange?: (s: AutonomousJourneyState) => void;
 }
 
 type ApprovalState = 'awaiting' | 'approving' | 'approved' | 'returned' | 'rejected';
 
-type WorkflowStage =
+export type WorkflowStage =
   | 'NOT_STARTED'
   | 'RUNNING'
   | 'DOCUMENTATION_REVIEW'
@@ -36,6 +38,12 @@ type WorkflowStage =
   | 'COMPLETED'
   | 'RETURNED'
   | 'REJECTED';
+
+export interface AutonomousJourneyState {
+  workflowStage: WorkflowStage;
+  autonomousStep: number;
+  approvalCommitStep: number;
+}
 
 /* ── Design tokens ── */
 const BLUE  = '#1976d2';
@@ -141,7 +149,7 @@ const MANUAL_TASKS = [
 /* Final elapsed when all steps complete: used as initial value on subsequent visits */
 const FINAL_ELAPSED = INITIAL_DELAY + 5 * STEP_DELAY;
 
-export default function PostFnolCoverageJourneyPage({ claim, onBack, onViewDocumentation, onViewMultiParty, onViewEnrichments, onViewAlerts, hasAnimated, onAnimationComplete, capFlags, workflowRun, backendStatus, onWorkflowStatus, claimCenterWritten }: Props) {
+export default function PostFnolCoverageJourneyPage({ claim, onBack, onViewDocumentation, onViewMultiParty, onViewEnrichments, onViewAlerts, hasAnimated, onAnimationComplete, capFlags, workflowRun, backendStatus, onWorkflowStatus, claimCenterWritten, initialAutonomousState, onAutonomousStateChange }: Props) {
   const steps = buildSteps(claim);
 
   /*
@@ -153,7 +161,10 @@ export default function PostFnolCoverageJourneyPage({ claim, onBack, onViewDocum
    * When hasAnimated=true (subsequent visits), start directly at 6 (completed state).
    */
   /* workflowStage: single source of truth for the entire workflow lifecycle */
-  const [workflowStage, setWorkflowStage] = useState<WorkflowStage>(hasAnimated ? 'DOCUMENTATION_REVIEW' : 'NOT_STARTED');
+  const [workflowStage, setWorkflowStage] = useState<WorkflowStage>(
+    initialAutonomousState?.workflowStage
+    ?? (hasAnimated ? 'DOCUMENTATION_REVIEW' : 'NOT_STARTED')
+  );
   const workflowStarted = workflowStage !== 'NOT_STARTED';
 
   const [activeStep, setActiveStep] = useState(hasAnimated ? 6 : 0);
@@ -189,8 +200,10 @@ export default function PostFnolCoverageJourneyPage({ claim, onBack, onViewDocum
   const isComplete = activeStep >= 6;
 
   /* ── Execution mode ── */
-  const [executionMode, setExecutionMode] = useState<'manual' | 'autonomous'>('manual');
-  const [autonomousStep, setAutonomousStep] = useState(0);
+  const [executionMode, setExecutionMode] = useState<'manual' | 'autonomous'>(
+    initialAutonomousState ? 'autonomous' : 'manual'
+  );
+  const [autonomousStep, setAutonomousStep] = useState(initialAutonomousState?.autonomousStep ?? 0);
   const [autonomousElapsed, setAutonomousElapsed] = useState(0);
 
   function startAutonomous() {
@@ -230,7 +243,7 @@ export default function PostFnolCoverageJourneyPage({ claim, onBack, onViewDocum
     }
   }
 
-  const [approvalCommitStep, setApprovalCommitStep] = useState(0);
+  const [approvalCommitStep, setApprovalCommitStep] = useState(initialAutonomousState?.approvalCommitStep ?? 0);
 
   /* approvalState: derived from workflowStage — no independent state */
   const approvalState: ApprovalState =
@@ -268,6 +281,23 @@ export default function PostFnolCoverageJourneyPage({ claim, onBack, onViewDocum
   const effectiveCompletedCount = Math.max(0, effectiveActiveStep - 1);
   const effectiveIsComplete     = effectiveActiveStep >= 6;
   const effectiveElapsed        = executionMode === 'autonomous' ? autonomousElapsed : elapsed;
+
+  /* Persist autonomous journey state to parent on every change */
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (executionMode !== 'autonomous') return;
+    onAutonomousStateChange?.({ workflowStage, autonomousStep, approvalCommitStep });
+  }, [executionMode, workflowStage, autonomousStep, approvalCommitStep]);
+
+  /* Auto-scroll completion banner into view when workflow finishes */
+  const completionRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!effectiveIsComplete) return;
+    const t = setTimeout(() => {
+      completionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }, 700);
+    return () => clearTimeout(t);
+  }, [effectiveIsComplete]);
 
   return (
     <div className="flex flex-col flex-1 min-h-0 overflow-y-auto" style={{ background: '#f1f5f9' }}>
@@ -579,10 +609,11 @@ export default function PostFnolCoverageJourneyPage({ claim, onBack, onViewDocum
 
       {/* ── Completion banner ── */}
       <div
+        ref={completionRef}
         style={{
           padding: '24px 40px 40px',
           overflow: 'hidden',
-          maxHeight: effectiveIsComplete ? 200 : 0,
+          maxHeight: effectiveIsComplete ? 280 : 0,
           opacity: effectiveIsComplete ? 1 : 0,
           transition: 'max-height 0.6s ease, opacity 0.5s ease',
         }}
