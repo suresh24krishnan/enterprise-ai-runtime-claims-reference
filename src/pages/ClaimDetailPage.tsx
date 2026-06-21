@@ -175,7 +175,6 @@ export default function ClaimDetailPage({ claim, onBack, onViewJourney, onViewDo
         >
           <ChatPanel
             claim={claim}
-            onGetEmail={() => setShowEmail(true)}
             emailSent={emailSent}
             onViewJourney={onViewJourney}
             onViewDocumentation={onViewDocumentation}

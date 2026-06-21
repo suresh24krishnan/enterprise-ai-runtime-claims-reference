@@ -4,7 +4,6 @@ import { buildQuery, buildConversation, buildFallbackResponse } from '../data/co
 
 interface Props {
   claim: Claim;
-  onGetEmail: () => void;
   emailSent: boolean;
   onViewJourney: () => void;
   onViewDocumentation: () => void;
@@ -14,7 +13,7 @@ interface Props {
   journeyEverOpened: boolean;
 }
 
-export default function ChatPanel({ claim, onGetEmail, emailSent, onViewJourney, onViewDocumentation, initialMessages, initialStep, onUpdate, journeyEverOpened }: Props) {
+export default function ChatPanel({ claim, emailSent, onViewJourney, onViewDocumentation, initialMessages, initialStep, onUpdate, journeyEverOpened }: Props) {
   const [messages, setMessages] = useState<ChatMessage[]>(() => initialMessages ?? []);
   const [input, setInput] = useState(() => (initialStep ?? 0) > 0 ? '' : buildQuery(claim));
   const [step, setStep] = useState(() => initialStep ?? 0);
@@ -125,7 +124,6 @@ export default function ChatPanel({ claim, onGetEmail, emailSent, onViewJourney,
           <RecommendedActions
             onVerifyCoverage={() => runVerifyCoverage(buildQuery(claim))}
             onStartJourney={onViewJourney}
-            onGenerateEmail={onGetEmail}
           />
         ) : (
           <div className="px-7 py-6 space-y-5">
@@ -134,8 +132,7 @@ export default function ChatPanel({ claim, onGetEmail, emailSent, onViewJourney,
                 key={msg.id}
                 msg={msg}
                 onAction={id => {
-                  if (id === 'get-email') onGetEmail();
-                  else if (id === 'open-docs') onViewDocumentation();
+                  if (id === 'open-docs') onViewDocumentation();
                   else if (id === 'open-journey') onViewJourney();
                 }}
                 journeyEverOpened={journeyEverOpened}
@@ -237,7 +234,6 @@ export default function ChatPanel({ claim, onGetEmail, emailSent, onViewJourney,
 interface RecommendedActionsProps {
   onVerifyCoverage: () => void;
   onStartJourney: () => void;
-  onGenerateEmail: () => void;
 }
 
 const ACTIONS = [
@@ -263,24 +259,12 @@ const ACTIONS = [
       </svg>
     ),
   },
-  {
-    id: 'email',
-    title: 'Generate Assignment Email',
-    description: 'Create the adjuster assignment email',
-    icon: (
-      <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-        <rect x="1.5" y="3.5" width="13" height="9" rx="1.5" stroke="currentColor" strokeWidth="1.4"/>
-        <path d="M1.5 5.5l6.5 4.5 6.5-4.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
-      </svg>
-    ),
-  },
 ];
 
-function RecommendedActions({ onVerifyCoverage, onStartJourney, onGenerateEmail }: RecommendedActionsProps) {
+function RecommendedActions({ onVerifyCoverage, onStartJourney }: RecommendedActionsProps) {
   const handlers: Record<string, () => void> = {
     verify:  onVerifyCoverage,
     journey: onStartJourney,
-    email:   onGenerateEmail,
   };
 
   return (
