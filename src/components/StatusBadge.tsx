@@ -1,33 +1,36 @@
 import type { ClaimStatus } from '../types';
 
-const styles: Record<ClaimStatus, string> = {
-  'Open':              'bg-blue-50 text-blue-700 border border-blue-200',
-  'In Progress':       'bg-amber-50 text-amber-700 border border-amber-200',
-  'Pending':           'bg-purple-50 text-purple-700 border border-purple-200',
-  'Closed':            'bg-slate-100 text-slate-500 border border-slate-200',
-  'Completed':         'bg-emerald-50 text-emerald-700 border border-emerald-200',
-  'Running':           'bg-blue-50 text-blue-700 border border-blue-200',
-  'Awaiting Approval': 'bg-amber-50 text-amber-700 border border-amber-200',
-  'Returned':          'bg-orange-50 text-orange-700 border border-orange-200',
-  'Rejected':          'bg-red-50 text-red-700 border border-red-200',
-};
-
-const dots: Record<ClaimStatus, string> = {
-  'Open':              'bg-blue-500',
-  'In Progress':       'bg-amber-500',
-  'Pending':           'bg-purple-500',
-  'Closed':            'bg-slate-400',
-  'Completed':         'bg-emerald-500',
-  'Running':           'bg-blue-500',
-  'Awaiting Approval': 'bg-amber-500',
-  'Returned':          'bg-orange-500',
-  'Rejected':          'bg-red-500',
+/* Centralized status → visual style map. Change labels or colors here only. */
+const STATUS_STYLES: Record<ClaimStatus, { bg: string; text: string; dot: string }> = {
+  'Open':              { bg: '#E6F1FB', text: '#0C447C', dot: '#1976d2' },
+  'In Progress':       { bg: '#FAEEDA', text: '#633806', dot: '#d97706' },
+  'Pending':           { bg: '#EEEDFE', text: '#3C3489', dot: '#7c3aed' },
+  'Closed':            { bg: '#f1f5f9', text: '#64748b', dot: '#94a3b8' },
+  'Completed':         { bg: '#f0fdf4', text: '#065f46', dot: '#059669' },
+  'Running':           { bg: '#E6F1FB', text: '#0C447C', dot: '#1976d2' },
+  'Awaiting Approval': { bg: '#FAEEDA', text: '#633806', dot: '#d97706' },
+  'Returned':          { bg: '#fff7ed', text: '#9a3412', dot: '#ea580c' },
+  'Rejected':          { bg: '#fef2f2', text: '#7f1d1d', dot: '#dc2626' },
 };
 
 export default function StatusBadge({ status }: { status: ClaimStatus }) {
+  const s = STATUS_STYLES[status];
   return (
-    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${styles[status]}`}>
-      <span className={`w-1.5 h-1.5 rounded-full ${dots[status]} shrink-0`} />
+    <span
+      className="inline-flex items-center gap-1.5"
+      style={{
+        fontSize: 12,
+        fontWeight: 500,
+        padding: '3px 10px',
+        borderRadius: 8,
+        background: s.bg,
+        color: s.text,
+      }}
+    >
+      <span
+        className="rounded-full shrink-0"
+        style={{ width: 6, height: 6, background: s.dot }}
+      />
       {status}
     </span>
   );
