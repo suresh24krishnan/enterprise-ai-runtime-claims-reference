@@ -33,8 +33,8 @@ function SectionHeader({
       style={{ background: 'rgba(248,250,252,0.9)' }}
     >
       <h3
-        className="font-black text-slate-400 uppercase leading-none"
-        style={{ fontSize: 9, letterSpacing: '0.14em' }}
+        className="font-black text-slate-500 uppercase leading-none"
+        style={{ fontSize: 10, letterSpacing: '0.10em' }}
       >
         {title}
       </h3>

@@ -33,11 +33,11 @@ export default function WorkspaceHeader({ claim, onBack }: Props) {
         </div>
 
         {/* Claimant name + loss type */}
-        <div className="flex flex-col justify-center gap-0.5 shrink-0">
-          <span className="font-bold text-[#0f3460] leading-none" style={{ fontSize: 15 }}>
+        <div className="flex flex-col justify-center gap-1 shrink-0">
+          <span className="font-black text-[#0f3460] leading-none" style={{ fontSize: 17, letterSpacing: '-0.01em' }}>
             {claim.claimantName}
           </span>
-          <span className="font-medium text-slate-400 leading-none" style={{ fontSize: 11 }}>
+          <span className="font-medium text-slate-400 leading-none" style={{ fontSize: 12 }}>
             {claim.lossType} Claim
           </span>
         </div>
