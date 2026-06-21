@@ -284,29 +284,35 @@ function RecommendedActions({ onVerifyCoverage, onStartJourney, onGenerateEmail 
   };
 
   return (
-    <div className="flex flex-col justify-center h-full px-8" style={{ paddingTop: 32, paddingBottom: 32 }}>
-      {/* Heading */}
-      <p className="font-bold text-[#0f3460] mb-1" style={{ fontSize: 15 }}>
+    <div className="px-7 pt-7 pb-6">
+      {/* Heading — primary section weight */}
+      <p className="font-black text-[#0f3460] leading-tight" style={{ fontSize: 17, letterSpacing: '-0.01em' }}>
         Recommended Actions
       </p>
-      <p className="font-medium text-slate-400 mb-6" style={{ fontSize: 12 }}>
+      <p className="font-medium text-slate-400 mt-1.5 mb-6" style={{ fontSize: 12 }}>
         QARL can assist with this claim immediately.
       </p>
 
       {/* Action cards */}
-      <div className="space-y-2.5">
+      <div className="space-y-3">
         {ACTIONS.map(action => (
           <button
             key={action.id}
             onClick={handlers[action.id]}
             className="w-full text-left bg-white border border-slate-200 rounded-xl flex items-center gap-4 group transition-colors"
             style={{
-              padding: '14px 18px',
+              padding: '16px 20px',
               boxShadow: '0 1px 3px rgba(15,52,96,0.05)',
               cursor: 'pointer',
             }}
-            onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = '#f8fbff'; (e.currentTarget as HTMLButtonElement).style.borderColor = '#c7d9f5'; }}
-            onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = ''; (e.currentTarget as HTMLButtonElement).style.borderColor = ''; }}
+            onMouseEnter={e => {
+              (e.currentTarget as HTMLButtonElement).style.background = '#f8fbff';
+              (e.currentTarget as HTMLButtonElement).style.borderColor = '#c7d9f5';
+            }}
+            onMouseLeave={e => {
+              (e.currentTarget as HTMLButtonElement).style.background = '';
+              (e.currentTarget as HTMLButtonElement).style.borderColor = '';
+            }}
           >
             {/* Icon */}
             <div
