@@ -272,6 +272,16 @@ export default function PostFnolCoverageJourneyPage({ claim, onBack, onViewDocum
     onWorkflowStatus?.('Returned');
   }
 
+  function handleResubmit() {
+    setWorkflowStage('HUMAN_APPROVAL');
+    onWorkflowStatus?.('Awaiting Approval');
+  }
+
+  function handleRevisePackage() {
+    // Expand/focus the governed claim package sections (AiPackageStatusPanel is already visible)
+    // No navigation needed — the package review sections are on the same screen
+  }
+
   function handleReject() {
     setWorkflowStage('REJECTED');
     onWorkflowStatus?.('Rejected');
@@ -476,7 +486,7 @@ export default function PostFnolCoverageJourneyPage({ claim, onBack, onViewDocum
 
       {/* ── Journey canvas ── */}
       {workflowStarted && executionMode === 'autonomous' && (
-        <div style={{ padding: '28px 40px 0' }}>
+        <div className="shrink-0" style={{ padding: '28px 40px 0' }}>
           <AutonomousExecutionPanel
             autonomousStep={autonomousStep}
             onStart={startAutonomous}
@@ -485,7 +495,7 @@ export default function PostFnolCoverageJourneyPage({ claim, onBack, onViewDocum
         </div>
       )}
       {workflowStarted && executionMode === 'manual' && (
-      <div style={{ padding: '28px 40px 0' }}>
+      <div className="shrink-0" style={{ padding: '28px 40px 0' }}>
 
         {/* Section label row */}
         <div className="flex items-center gap-3 mb-5">
@@ -573,7 +583,7 @@ export default function PostFnolCoverageJourneyPage({ claim, onBack, onViewDocum
       )}
 
       {/* ── Three-column row ── */}
-      {workflowStarted && <div className="grid grid-cols-3 gap-5" style={{ padding: '24px 40px 0' }}>
+      {workflowStarted && <div className="shrink-0 grid grid-cols-3 gap-5" style={{ padding: '24px 40px 0' }}>
         <AiPackageStatusPanel
           isComplete={effectiveIsComplete}
           capFlags={capFlags}
@@ -586,6 +596,8 @@ export default function PostFnolCoverageJourneyPage({ claim, onBack, onViewDocum
           onApprove={handleApprove}
           onRequestChanges={handleRequestChanges}
           onReject={handleReject}
+          onResubmit={handleResubmit}
+          onRevisePackage={handleRevisePackage}
         />
         <ArchitectureProofPanel
           backendStatus={backendStatus}
@@ -599,7 +611,7 @@ export default function PostFnolCoverageJourneyPage({ claim, onBack, onViewDocum
       </div>}
 
       {/* ── Enterprise Actions Executed ── */}
-      {workflowStarted && <div style={{ padding: '20px 40px 0' }}>
+      {workflowStarted && <div className="shrink-0" style={{ padding: '20px 40px 0' }}>
         <EnterpriseAdapterLayerPanel
           backendStatus={backendStatus}
           workflowRun={workflowRun}
@@ -610,6 +622,7 @@ export default function PostFnolCoverageJourneyPage({ claim, onBack, onViewDocum
       {/* ── Completion banner ── */}
       <div
         ref={completionRef}
+        className="shrink-0"
         style={{
           padding: '24px 40px 40px',
           overflow: 'hidden',
@@ -1001,12 +1014,16 @@ function HumanApprovalGate({
   onApprove,
   onRequestChanges,
   onReject,
+  onResubmit,
+  onRevisePackage,
 }: {
   approvalState: ApprovalState;
   approvalCommitStep: number;
   onApprove: () => void;
   onRequestChanges: () => void;
   onReject: () => void;
+  onResubmit: () => void;
+  onRevisePackage: () => void;
 }) {
   if (approvalState === 'approved') {
     return (
@@ -1034,24 +1051,50 @@ function HumanApprovalGate({
 
   if (approvalState === 'returned') {
     return (
-      <div className="rounded-xl border border-amber-200 flex items-center gap-4"
-           style={{ padding: '16px 20px', background: '#fffbeb' }}>
-        <div className="rounded-full bg-amber-100 flex items-center justify-center shrink-0"
-             style={{ width: 42, height: 42, border: '2px solid #fde68a' }}>
-          <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-            <path d="M9 4v5.5M9 11.5v1.5" stroke="#b45309" strokeWidth="2" strokeLinecap="round"/>
-          </svg>
+      <div className="rounded-xl border border-amber-200 overflow-hidden" style={{ background: '#fffbeb' }}>
+        <div className="flex items-start gap-4 border-b border-amber-100" style={{ padding: '16px 20px' }}>
+          <div className="rounded-full bg-amber-100 flex items-center justify-center shrink-0"
+               style={{ width: 42, height: 42, border: '2px solid #fde68a' }}>
+            <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+              <path d="M9 4v5.5M9 11.5v1.5" stroke="#b45309" strokeWidth="2" strokeLinecap="round"/>
+            </svg>
+          </div>
+          <div className="flex-1">
+            <p className="font-black text-amber-800 leading-none" style={{ fontSize: 14 }}>Changes Requested</p>
+            <p className="font-semibold text-amber-700 mt-1 leading-snug" style={{ fontSize: 11 }}>
+              No enterprise systems were written. The governed package has been returned for revision.
+              Review the package below and resubmit when ready.
+            </p>
+          </div>
+          <span className="font-black rounded-full border border-amber-300 bg-amber-50 text-amber-700 shrink-0"
+                style={{ fontSize: 8, letterSpacing: '0.10em', padding: '3px 12px' }}>
+            CHANGES REQUESTED
+          </span>
         </div>
-        <div className="flex-1">
-          <p className="font-black text-amber-800 leading-none" style={{ fontSize: 14 }}>Returned for Review</p>
-          <p className="font-semibold text-amber-700 mt-0.5" style={{ fontSize: 11 }}>
-            No enterprise systems written · Adjuster changes requested — package awaiting revision
-          </p>
+        <div className="flex items-center gap-3" style={{ padding: '14px 20px' }}>
+          <button
+            onClick={onRevisePackage}
+            className="flex items-center gap-2 rounded-xl font-black transition-all hover:opacity-90 active:scale-[0.97]"
+            style={{ fontSize: 12, padding: '10px 22px', background: '#fef3c7', color: '#92400e',
+                     border: '1.5px solid #fde68a', cursor: 'pointer' }}
+          >
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+              <path d="M2 10h8M7.5 2.5l2 2-5 5H2.5v-2l5-5z" stroke="#92400e" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+            Revise Package
+          </button>
+          <button
+            onClick={onResubmit}
+            className="flex items-center gap-2 rounded-xl font-black text-white transition-all hover:opacity-90 active:scale-[0.97]"
+            style={{ fontSize: 12, padding: '10px 22px', background: 'linear-gradient(135deg, #d97706 0%, #b45309 100%)',
+                     boxShadow: '0 3px 12px rgba(180,83,9,0.30)', border: 'none', cursor: 'pointer' }}
+          >
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+              <path d="M2 6a4 4 0 107.9-1M10 2v3H7" stroke="white" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+            Resubmit for Approval
+          </button>
         </div>
-        <span className="font-black rounded-full border border-amber-300 bg-amber-50 text-amber-700 shrink-0"
-              style={{ fontSize: 8, letterSpacing: '0.10em', padding: '3px 12px' }}>
-          RETURNED
-        </span>
       </div>
     );
   }
@@ -1614,6 +1657,8 @@ function AiPackageStatusPanel({
   onApprove,
   onRequestChanges,
   onReject,
+  onResubmit,
+  onRevisePackage,
 }: {
   isComplete: boolean;
   capFlags: CapabilityFlags;
@@ -1626,6 +1671,8 @@ function AiPackageStatusPanel({
   onApprove?: () => void;
   onRequestChanges?: () => void;
   onReject?: () => void;
+  onResubmit?: () => void;
+  onRevisePackage?: () => void;
 }) {
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set());
 
@@ -1814,14 +1861,16 @@ function AiPackageStatusPanel({
       </div>
 
       {/* ── Autonomous mode: Human Approval Gate at bottom ── */}
-      {isComplete && isAutonomousMode && onApprove && onRequestChanges && onReject && (
+      {isComplete && isAutonomousMode && approvalState && (
         <div className="border-t border-slate-100" style={{ padding: '0 20px 20px' }}>
           <HumanApprovalGate
-            approvalState={approvalState!}
+            approvalState={approvalState}
             approvalCommitStep={approvalCommitStep ?? 0}
-            onApprove={onApprove}
-            onRequestChanges={onRequestChanges}
-            onReject={onReject}
+            onApprove={onApprove ?? (() => {})}
+            onRequestChanges={onRequestChanges ?? (() => {})}
+            onReject={onReject ?? (() => {})}
+            onResubmit={onResubmit ?? (() => {})}
+            onRevisePackage={onRevisePackage ?? (() => {})}
           />
         </div>
       )}
