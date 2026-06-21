@@ -770,7 +770,7 @@ function EmailSection({ email }: { email: { to: string; subject: string; body: s
 }
 
 /* ═══════════════════════════════════════════
-   AI Evidence & Provenance section
+   Evidence Sources Reviewed section
 ═══════════════════════════════════════════ */
 function EvidenceSection({
   items,
@@ -781,35 +781,22 @@ function EvidenceSection({
     <div className="rounded-2xl border border-slate-200 bg-white overflow-hidden" style={{ boxShadow: CARD_SHADOW }}>
       <SectionHeader
         icon={<EvidenceIcon />}
-        title="AI Evidence & Provenance"
+        title="Evidence Sources Reviewed"
         badge={{ label: 'AI Sourced', color: 'blue' }}
       />
-      <div
-        className="gap-0 divide-x divide-slate-100"
-        style={{ padding: '20px 24px', display: 'grid', gridTemplateColumns: `repeat(${items.length}, 1fr)` }}
-      >
+      <div className="flex flex-wrap gap-3" style={{ padding: '20px 24px' }}>
         {items.map((item, i) => (
-          <div key={i} className={`flex flex-col gap-3 ${i > 0 ? 'pl-6' : ''} ${i < items.length - 1 ? 'pr-6' : ''}`}>
-            <div className="flex items-center justify-between">
-              <p className="font-black text-slate-700 leading-tight" style={{ fontSize: 12 }}>{item.label}</p>
-              <span
-                className="font-black tabular-nums"
-                style={{ fontSize: 15, color: item.pct >= 98 ? '#059669' : item.pct >= 96 ? BLUE : '#d97706' }}
-              >
-                {item.pct}%
-              </span>
-            </div>
-            <div className="rounded-full bg-slate-100 overflow-hidden" style={{ height: 5 }}>
-              <div
-                className="rounded-full h-full"
-                style={{
-                  width: `${item.pct}%`,
-                  background: item.pct >= 98 ? '#059669' : item.pct >= 96 ? BLUE : '#d97706',
-                  transition: 'width 1s ease',
-                }}
-              />
-            </div>
-            <p className="font-medium text-slate-500 leading-snug" style={{ fontSize: 11 }}>{item.detail}</p>
+          <div
+            key={i}
+            className="flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50"
+            style={{ padding: '7px 14px' }}
+          >
+            <svg width="11" height="11" viewBox="0 0 11 11" fill="none">
+              <path d="M2 5.5l2.5 2.5L9 2" stroke="#059669" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+            <span className="font-semibold text-emerald-800 leading-none" style={{ fontSize: 12 }}>
+              {item.label}
+            </span>
           </div>
         ))}
       </div>
