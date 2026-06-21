@@ -103,7 +103,7 @@ const ALERT_CARDS: AlertCardDef[] = [
     statusColor: 'amber',
     icon: <TimerIcon />,
     description: () => 'SLA countdown tracked against claim priority and pending adjuster actions.',
-    output: 'Auto-alerts set to match SLAs.',
+    output: 'Operational monitoring active.',
   },
 ];
 
@@ -149,10 +149,10 @@ export default function AutoAlertsPage({ claim, onBack, docPackage, onAlertAdded
 
   const addDisabled = !allDone || pkgAdded || alreadyHasAlerts;
   const addLabel    = alreadyHasAlerts
-    ? 'Alerts Already in Package'
+    ? 'Coordination Actions Already in Package'
     : pkgAdded
     ? 'Added to Package ✓'
-    : 'Add Alerts to Documentation Package';
+    : 'Add Coordination Actions to Documentation Package';
 
   return (
     <div className="flex flex-col flex-1 min-h-0" style={{ background: '#f1f5f9' }}>
@@ -213,10 +213,10 @@ export default function AutoAlertsPage({ claim, onBack, docPackage, onAlertAdded
                 </div>
                 <div>
                   <p className="font-black text-emerald-800 leading-tight" style={{ fontSize: 14 }}>
-                    Auto-alerts and communication updates added to the documentation package.
+                    Workflow coordination actions added to the documentation package.
                   </p>
                   <p className="font-medium text-emerald-600 mt-0.5" style={{ fontSize: 12 }}>
-                    5 alerts prepared · 1 communication drafted · SLA monitoring active · Confidence 96%
+                    5 coordination actions prepared · 1 communication drafted · Operational monitoring active · Confidence 96%
                   </p>
                 </div>
               </div>
@@ -356,10 +356,10 @@ function PageHeader({ claim, onBack, allDone, isRunning }: {
         <div className="flex items-start justify-between gap-6">
           <div>
             <p className="font-black uppercase mb-1" style={{ fontSize: 9, letterSpacing: '0.18em', color: BLUE }}>
-              AI Capability · Step 5 of 5 · Communication
+              AI Capability · Step 5 of 5 · Operational Follow-Up
             </p>
             <h1 className="font-black leading-tight" style={{ fontSize: 24, color: NAVY, letterSpacing: '-0.02em' }}>
-              Auto-Alerts
+              Workflow Coordination
             </h1>
             <div className="flex items-center gap-3 mt-1.5">
               <span className="font-semibold text-slate-500" style={{ fontSize: 13 }}>{claim.claimantName}</span>
@@ -412,7 +412,7 @@ function PageHeader({ claim, onBack, allDone, isRunning }: {
                   color: allDone ? '#059669' : '#b45309',
                 }}
               >
-                {allDone ? 'Alerts Active' : isRunning ? 'Configuring…' : 'Monitoring'}
+                {allDone ? 'Coordination Active' : isRunning ? 'Configuring…' : 'Monitoring'}
               </span>
             </div>
           </div>
@@ -433,7 +433,7 @@ function AlertSummaryCard({ claim, allDone, isRunning, completedCount }: {
   const kpis = [
     { label: 'Claim File',  value: 'Create a Notice and a Future Alert', wide: true },
     { label: 'Type',        value: 'Update Claim File Noting the Status', wide: true },
-    { label: 'Result',      value: allDone ? 'Auto alerts set to match SLAs' : isRunning ? 'Configuring…' : '—', wide: false },
+    { label: 'Result',      value: allDone ? 'Workflow actions configured' : isRunning ? 'Configuring…' : '—', wide: false },
     { label: 'Status',      value: allDone ? 'Monitoring' : isRunning ? 'Configuring' : 'Pending', wide: false },
     { label: 'Confidence',  value: allDone ? '96%' : isRunning ? `${completedCount * 18}%` : '—', wide: false },
   ];
@@ -463,10 +463,10 @@ function AlertSummaryCard({ claim, allDone, isRunning, completedCount }: {
         </div>
         <div>
           <p className="font-black text-[#0f3460] leading-none" style={{ fontSize: 13 }}>
-            QARL Auto-Alerts Summary
+            QARL Workflow Coordination Summary
           </p>
           <p className="text-slate-400 font-medium leading-none mt-0.5" style={{ fontSize: 11 }}>
-            {claim.claimantName} · {claim.id} · Communication
+            {claim.claimantName} · {claim.id} · Operational Follow-Up
           </p>
         </div>
         <div className="ml-auto flex items-center gap-2">
@@ -479,7 +479,7 @@ function AlertSummaryCard({ claim, allDone, isRunning, completedCount }: {
                 <path d="M1.5 4.5l2 2L7.5 2" stroke="#059669" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
               </svg>
               <span className="font-black text-emerald-700 uppercase" style={{ fontSize: 8, letterSpacing: '0.10em' }}>
-                5 Alerts Configured
+                Workflow actions configured
               </span>
             </div>
           )}
@@ -532,7 +532,7 @@ function AlertSummaryCard({ claim, allDone, isRunning, completedCount }: {
 /* ═══════════════════════════════════════════
    Alert Card
 ═══════════════════════════════════════════ */
-function AlertCard({ card, claim, completed, processing, execTime, timestamp }: {
+function AlertCard({ card, claim, completed, processing, execTime: _execTime, timestamp }: {
   card: AlertCardDef;
   claim: Claim;
   completed: boolean;
@@ -645,16 +645,7 @@ function AlertCard({ card, claim, completed, processing, execTime, timestamp }: 
         style={{ padding: '8px 14px', background: 'rgba(248,250,252,0.8)' }}
       >
         {completed ? (
-          <>
-            <span className="font-mono text-slate-400" style={{ fontSize: 9 }}>{timestamp}</span>
-            <div
-              className="rounded-md flex items-center gap-1"
-              style={{ padding: '2px 7px', background: '#f1f5f9', border: '1px solid #e2e8f0' }}
-            >
-              <span className="font-black text-slate-400 uppercase" style={{ fontSize: 7, letterSpacing: '0.08em' }}>exec</span>
-              <span className="font-mono font-bold text-slate-600" style={{ fontSize: 9 }}>{execTime}</span>
-            </div>
-          </>
+          <span className="font-mono text-slate-400" style={{ fontSize: 9 }}>{timestamp}</span>
         ) : processing ? (
           <span className="font-bold text-blue-600 animate-pulse" style={{ fontSize: 9 }}>Configuring…</span>
         ) : (
@@ -744,23 +735,16 @@ function OrchestrationTimeline({ completedCount, isRunning, allDone, logRef }: {
 /* ═══════════════════════════════════════════
    Right Monitoring Panel
 ═══════════════════════════════════════════ */
-function MonitoringPanel({ completedCount, allDone, claim }: {
+function MonitoringPanel({ completedCount, allDone, claim: _claim }: {
   completedCount: number; allDone: boolean; claim: Claim;
 }) {
   const statusItems = [
     { text: 'Claim notice prepared',             done: completedCount >= 1 },
-    { text: 'Future alert scheduled',             done: completedCount >= 2 },
+    { text: 'Follow-up reminder scheduled',        done: completedCount >= 2 },
     { text: 'Agent email drafted',                done: completedCount >= 3 },
     { text: 'Supervisor notification queued',     done: completedCount >= 4 },
-    { text: 'SLA monitoring active',              done: completedCount >= 5 },
+    { text: 'Operational monitoring active',       done: completedCount >= 5 },
     { text: 'Documentation package updated',      done: allDone },
-  ];
-
-  const metrics = [
-    { label: 'Alerts Prepared',        value: `${completedCount} / 5` },
-    { label: 'Communications Drafted',  value: completedCount >= 3 ? '1' : '0' },
-    { label: 'SLA Days Remaining',      value: String(claim.slaDaysRemaining) },
-    { label: 'Monitoring Confidence',   value: allDone ? '96%' : '—' },
   ];
 
   return (
@@ -776,7 +760,7 @@ function MonitoringPanel({ completedCount, allDone, claim }: {
         >
           <p className="font-black text-[#0f3460]" style={{ fontSize: 11 }}>Alert Status</p>
           <p className="font-medium text-slate-400 mt-0.5" style={{ fontSize: 10 }}>
-            Communication monitoring
+            Workflow coordination
           </p>
         </div>
         <div style={{ padding: '12px 16px' }}>
@@ -815,35 +799,6 @@ function MonitoringPanel({ completedCount, allDone, claim }: {
         </div>
       </div>
 
-      {/* Metrics */}
-      <div
-        className="rounded-2xl border border-slate-200 bg-white overflow-hidden"
-        style={{ boxShadow: CARD_SHADOW }}
-      >
-        <div
-          className="border-b border-slate-100"
-          style={{ padding: '12px 16px', background: 'rgba(248,250,252,0.9)' }}
-        >
-          <p className="font-black text-[#0f3460]" style={{ fontSize: 11 }}>Metrics</p>
-          <p className="font-medium text-slate-400 mt-0.5" style={{ fontSize: 10 }}>
-            Alert configuration status
-          </p>
-        </div>
-        <div style={{ padding: '14px 16px' }}>
-          <div className="space-y-3.5">
-            {metrics.map((m, i) => (
-              <div key={i}>
-                <p className="font-black text-slate-400 uppercase mb-0.5" style={{ fontSize: 7, letterSpacing: '0.12em' }}>
-                  {m.label}
-                </p>
-                <p className="font-black font-mono" style={{ fontSize: 15, color: NAVY }}>
-                  {m.value}
-                </p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
     </>
   );
 }
