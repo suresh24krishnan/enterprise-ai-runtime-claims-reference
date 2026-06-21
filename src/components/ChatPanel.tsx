@@ -20,11 +20,9 @@ export default function ChatPanel({ claim, onGetEmail, emailSent, onViewJourney,
   const [step, setStep] = useState(() => initialStep ?? 0);
   const [isTyping, setIsTyping] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
-  // Stable ref so the sync effect doesn't need onUpdate in its dependency array
   const onUpdateRef = useRef(onUpdate);
   onUpdateRef.current = onUpdate;
 
-  // Sync conversation state up to App on every change
   useEffect(() => {
     onUpdateRef.current(messages, step);
   }, [messages, step]);
@@ -46,20 +44,25 @@ export default function ChatPanel({ claim, onGetEmail, emailSent, onViewJourney,
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isTyping]);
 
+  /* Shared step-0 conversation runner — used by typed send AND recommended action */
+  const runVerifyCoverage = (text: string) => {
+    const convo = buildConversation(claim);
+    setMessages(prev => [...prev, { ...convo[0], content: text }]);
+    setInput('');
+    setIsTyping(true);
+    setTimeout(() => setMessages(prev => [...prev, convo[1]]), 800);
+    setTimeout(() => {
+      setIsTyping(false);
+      setMessages(prev => [...prev, convo[2]]);
+      setStep(1);
+    }, 2400);
+  };
+
   const handleSend = () => {
     const text = input.trim();
     if (!text) return;
-    const convo = buildConversation(claim);
     if (step === 0) {
-      setMessages(prev => [...prev, { ...convo[0], content: text }]);
-      setInput('');
-      setIsTyping(true);
-      setTimeout(() => setMessages(prev => [...prev, convo[1]]), 800);
-      setTimeout(() => {
-        setIsTyping(false);
-        setMessages(prev => [...prev, convo[2]]);
-        setStep(1);
-      }, 2400);
+      runVerifyCoverage(text);
     } else {
       const userId = `user-${Date.now()}`;
       setMessages(prev => [
@@ -86,9 +89,9 @@ export default function ChatPanel({ claim, onGetEmail, emailSent, onViewJourney,
   return (
     <div className="flex flex-col h-full" style={{ background: '#fff' }}>
 
-      {/* ── Header ── */}
+      {/* ── Header — QARL branding only ── */}
       <div
-        className="flex items-center justify-between px-6 shrink-0 border-b border-slate-200"
+        className="flex items-center px-6 shrink-0 border-b border-slate-200"
         style={{ height: 60, background: '#fff' }}
       >
         <div className="flex items-center gap-3">
@@ -114,37 +117,16 @@ export default function ChatPanel({ claim, onGetEmail, emailSent, onViewJourney,
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          <SysCard label="Policy Center" />
-          <SysCard label="Claim Center" />
-          <div className="w-px h-4 bg-slate-200 mx-0.5" />
-          <OnlinePill />
-        </div>
       </div>
 
-      {/* ── Messages ── */}
+      {/* ── Messages / Recommended Actions ── */}
       <div className="flex-1 overflow-y-auto min-h-0" style={{ background: '#f8fafc' }}>
         {messages.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-full text-center px-10">
-            <div
-              className="rounded-2xl bg-white border border-slate-200 flex items-center justify-center mb-5"
-              style={{ width: 64, height: 64, boxShadow: '0 4px 20px rgba(15,52,96,0.10)' }}
-            >
-              <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
-                <path
-                  d="M16 2C8.268 2 2 8.268 2 16c0 2.56.67 4.964 1.845 7.04L2 30l6.96-1.845A13.93 13.93 0 0016 30c7.732 0 14-6.268 14-14S23.732 2 16 2z"
-                  fill="#dbeafe" stroke="#1976d2" strokeWidth="1.6" strokeLinejoin="round"
-                />
-                <path d="M10 16.5h12M10 11.5h8" stroke="#1976d2" strokeWidth="1.8" strokeLinecap="round"/>
-              </svg>
-            </div>
-            <p className="font-bold text-[#0f3460] leading-tight" style={{ fontSize: 15 }}>
-              Ask QARL about this claim
-            </p>
-            <p className="text-slate-400 mt-2 leading-relaxed" style={{ fontSize: 13, maxWidth: 260 }}>
-              Verify coverage, review policy details, or draft an assignment email.
-            </p>
-          </div>
+          <RecommendedActions
+            onVerifyCoverage={() => runVerifyCoverage(buildQuery(claim))}
+            onStartJourney={onViewJourney}
+            onGenerateEmail={onGetEmail}
+          />
         ) : (
           <div className="px-7 py-6 space-y-5">
             {messages.map(msg => (
@@ -188,10 +170,7 @@ export default function ChatPanel({ claim, onGetEmail, emailSent, onViewJourney,
           style={{ padding: '10px 24px', background: '#eff6ff' }}
         >
           <div className="flex items-center gap-2">
-            <div
-              className="rounded-full bg-emerald-400 shrink-0"
-              style={{ width: 6, height: 6 }}
-            />
+            <div className="rounded-full bg-emerald-400 shrink-0" style={{ width: 6, height: 6 }} />
             <span className="font-semibold text-blue-700" style={{ fontSize: 11 }}>
               Coverage verified for {claim.claimantName}
             </span>
@@ -253,6 +232,117 @@ export default function ChatPanel({ claim, onGetEmail, emailSent, onViewJourney,
   );
 }
 
+/* ── Recommended Actions empty state ── */
+
+interface RecommendedActionsProps {
+  onVerifyCoverage: () => void;
+  onStartJourney: () => void;
+  onGenerateEmail: () => void;
+}
+
+const ACTIONS = [
+  {
+    id: 'verify',
+    title: 'Verify Coverage',
+    description: 'Validate policy and coverage details',
+    icon: (
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+        <path d="M8 1.5L2 4.5v4c0 3.5 2.5 5.8 6 7 3.5-1.2 6-3.5 6-7v-4L8 1.5z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round"/>
+        <path d="M5.5 8l2 2L11 6" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
+      </svg>
+    ),
+  },
+  {
+    id: 'journey',
+    title: 'Start AI Journey',
+    description: 'Execute the Post-FNOL workflow',
+    icon: (
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+        <circle cx="8" cy="8" r="6.5" stroke="currentColor" strokeWidth="1.4"/>
+        <path d="M6 5.5l4.5 2.5L6 10.5V5.5z" fill="currentColor"/>
+      </svg>
+    ),
+  },
+  {
+    id: 'email',
+    title: 'Generate Assignment Email',
+    description: 'Create the adjuster assignment email',
+    icon: (
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+        <rect x="1.5" y="3.5" width="13" height="9" rx="1.5" stroke="currentColor" strokeWidth="1.4"/>
+        <path d="M1.5 5.5l6.5 4.5 6.5-4.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
+      </svg>
+    ),
+  },
+];
+
+function RecommendedActions({ onVerifyCoverage, onStartJourney, onGenerateEmail }: RecommendedActionsProps) {
+  const handlers: Record<string, () => void> = {
+    verify:  onVerifyCoverage,
+    journey: onStartJourney,
+    email:   onGenerateEmail,
+  };
+
+  return (
+    <div className="flex flex-col justify-center h-full px-8" style={{ paddingTop: 32, paddingBottom: 32 }}>
+      {/* Heading */}
+      <p className="font-bold text-[#0f3460] mb-1" style={{ fontSize: 15 }}>
+        Recommended Actions
+      </p>
+      <p className="font-medium text-slate-400 mb-6" style={{ fontSize: 12 }}>
+        QARL can assist with this claim immediately.
+      </p>
+
+      {/* Action cards */}
+      <div className="space-y-2.5">
+        {ACTIONS.map(action => (
+          <button
+            key={action.id}
+            onClick={handlers[action.id]}
+            className="w-full text-left bg-white border border-slate-200 rounded-xl flex items-center gap-4 group transition-colors"
+            style={{
+              padding: '14px 18px',
+              boxShadow: '0 1px 3px rgba(15,52,96,0.05)',
+              cursor: 'pointer',
+            }}
+            onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = '#f8fbff'; (e.currentTarget as HTMLButtonElement).style.borderColor = '#c7d9f5'; }}
+            onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = ''; (e.currentTarget as HTMLButtonElement).style.borderColor = ''; }}
+          >
+            {/* Icon */}
+            <div
+              className="shrink-0 rounded-lg flex items-center justify-center text-[#1976d2]"
+              style={{ width: 36, height: 36, background: '#E6F1FB' }}
+            >
+              {action.icon}
+            </div>
+            {/* Text */}
+            <div className="flex-1 min-w-0">
+              <p className="font-semibold text-[#0f3460] leading-none mb-1" style={{ fontSize: 13 }}>
+                {action.title}
+              </p>
+              <p className="font-medium text-slate-400 leading-none" style={{ fontSize: 11 }}>
+                {action.description}
+              </p>
+            </div>
+            {/* Chevron */}
+            <svg
+              width="14" height="14" viewBox="0 0 14 14" fill="none"
+              className="shrink-0 text-slate-300 group-hover:text-[#1976d2] transition-colors"
+            >
+              <path d="M5 3l4 4-4 4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          </button>
+        ))}
+      </div>
+
+      {/* Footer hint */}
+      <p className="text-center font-medium text-slate-300 mt-6" style={{ fontSize: 11 }}>
+        Or ask QARL anything…
+      </p>
+    </div>
+  );
+}
+
 /* ── Sub-components ── */
 
 function QAvatar() {
@@ -266,30 +356,6 @@ function QAvatar() {
       }}
     >
       <span className="text-white font-black" style={{ fontSize: 10 }}>Q</span>
-    </div>
-  );
-}
-
-function SysCard({ label }: { label: string }) {
-  return (
-    <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-lg" style={{ padding: '5px 10px' }}>
-      <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
-        <rect x="1" y="1" width="8" height="8" rx="1" stroke="#94a3b8" strokeWidth="1"/>
-        <path d="M2.5 4h5M2.5 6h3" stroke="#94a3b8" strokeWidth="0.9" strokeLinecap="round"/>
-      </svg>
-      <span className="font-bold text-slate-500 whitespace-nowrap" style={{ fontSize: 10, letterSpacing: '0.02em' }}>
-        {label}
-      </span>
-      <span className="rounded-full bg-emerald-500 shrink-0" style={{ width: 5, height: 5 }} />
-    </div>
-  );
-}
-
-function OnlinePill() {
-  return (
-    <div className="flex items-center gap-1.5 bg-emerald-50 border border-emerald-200 rounded-lg" style={{ padding: '5px 10px' }}>
-      <span className="rounded-full bg-emerald-500 animate-pulse shrink-0" style={{ width: 6, height: 6 }} />
-      <span className="font-bold text-emerald-700" style={{ fontSize: 10, letterSpacing: '0.03em' }}>Online</span>
     </div>
   );
 }
@@ -327,7 +393,6 @@ function Bubble({ msg, onAction, journeyEverOpened }: { msg: ChatMessage; onActi
     return <ResultCard msg={msg} onAction={onAction} journeyEverOpened={journeyEverOpened} />;
   }
 
-  // Plain AI text / email confirm
   const isConfirm = msg.id === 'email-confirm';
   return (
     <div className="flex items-end gap-3">
@@ -364,7 +429,6 @@ function ResultCard({ msg, onAction, journeyEverOpened }: { msg: ChatMessage; on
         className="flex-1 min-w-0 bg-white border border-slate-200 rounded-2xl rounded-tl-sm overflow-hidden"
         style={{ boxShadow: '0 2px 16px rgba(15,52,96,0.08)' }}
       >
-        {/* Result items */}
         <div style={{ padding: '20px 24px 16px' }}>
           <div className="space-y-4">
             {msg.results?.map((r, i) => (
@@ -393,7 +457,6 @@ function ResultCard({ msg, onAction, journeyEverOpened }: { msg: ChatMessage; on
           </div>
         </div>
 
-        {/* Follow-up summary line */}
         {msg.followUp && (
           <div className="border-t border-slate-100" style={{ padding: '12px 24px', background: 'rgba(248,250,252,0.7)' }}>
             <div className="flex items-center gap-2">
@@ -412,15 +475,13 @@ function ResultCard({ msg, onAction, journeyEverOpened }: { msg: ChatMessage; on
           </div>
         )}
 
-        {/* One-time workflow CTA — disappears permanently after first journey open */}
         {!journeyEverOpened && (
           <div className="border-t border-slate-100" style={{ padding: '14px 24px' }}>
             <button
               onClick={() => onAction('open-journey')}
               className="w-full flex items-center justify-center gap-2.5 font-bold text-white rounded-xl transition-all hover:opacity-90 active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
               style={{
-                height: 44,
-                fontSize: 13,
+                height: 44, fontSize: 13,
                 background: '#1976d2',
                 boxShadow: '0 2px 12px rgba(25,118,210,0.32)',
                 cursor: 'pointer',
@@ -435,38 +496,32 @@ function ResultCard({ msg, onAction, journeyEverOpened }: { msg: ChatMessage; on
           </div>
         )}
 
-        {/* Actions */}
         {msg.actions && msg.actions.length > 0 && (
           <div className="border-t border-slate-100" style={{ padding: '14px 24px' }}>
             {msg.actions.map(action =>
               action.id === 'open-docs' ? (
-                /* Primary CTA — full-width enterprise button */
                 <button
                   key={action.id}
                   onClick={() => onAction(action.id)}
                   className="w-full flex items-center justify-center gap-2.5 font-bold text-white rounded-xl transition-all hover:opacity-90 active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
                   style={{
-                    height: 44,
-                    fontSize: 13,
+                    height: 44, fontSize: 13,
                     background: '#1976d2',
                     boxShadow: '0 2px 12px rgba(25,118,210,0.32)',
                     cursor: 'pointer',
                     letterSpacing: '-0.01em',
                   }}
                 >
-                  {/* Document icon */}
                   <svg width="15" height="15" viewBox="0 0 15 15" fill="none" style={{ flexShrink: 0 }}>
                     <rect x="2" y="1" width="11" height="13" rx="1.5" stroke="white" strokeWidth="1.4"/>
                     <path d="M4.5 5h6M4.5 7.5h6M4.5 10h3.5" stroke="white" strokeWidth="1.2" strokeLinecap="round"/>
                   </svg>
                   {action.label}
-                  {/* Arrow icon */}
                   <svg width="14" height="14" viewBox="0 0 14 14" fill="none" style={{ flexShrink: 0 }}>
                     <path d="M2.5 7h9M8 3.5l3.5 3.5L8 10.5" stroke="white" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
                   </svg>
                 </button>
               ) : (
-                /* Generic button for any other future actions */
                 <button
                   key={action.id}
                   onClick={() => onAction(action.id)}

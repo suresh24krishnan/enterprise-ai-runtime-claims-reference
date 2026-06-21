@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type { Claim, ChatMessage } from '../types';
-import ClaimContextHeader from '../components/ClaimContextHeader';
+import WorkspaceHeader from '../components/WorkspaceHeader';
 import ChatPanel from '../components/ChatPanel';
 import EmailModal from '../components/EmailModal';
 import { buildEmailDraft } from '../data/conversation';
@@ -103,7 +103,7 @@ export default function ClaimDetailPage({ claim, onBack, onViewJourney, onViewDo
 
   return (
     <div className="flex flex-col flex-1 min-h-0">
-      <ClaimContextHeader claim={claim} onBack={onBack} />
+      <WorkspaceHeader claim={claim} onBack={onBack} />
 
       <div className="flex flex-1 min-h-0 overflow-hidden bg-slate-100 p-6 gap-5">
 
@@ -130,76 +130,41 @@ export default function ClaimDetailPage({ claim, onBack, onViewJourney, onViewDo
             </div>
           </div>
 
-          {/* Reserve Summary */}
+          {/* Reserve Summary — compact */}
           <div className="bg-white rounded-xl border border-slate-200 overflow-hidden" style={CARD_STYLE}>
             <SectionHeader title="Reserve Summary" />
-            <div className="px-5 pt-4 pb-5">
-
-              {/* Initial row */}
-              <div className="flex justify-between items-baseline mb-3">
+            <div className="px-5 pt-4 pb-4">
+              <div className="flex items-baseline justify-between mb-1">
                 <span
                   className="font-semibold text-slate-400 uppercase"
                   style={{ fontSize: 9, letterSpacing: '0.1em' }}
                 >
-                  Initial Reserve
-                </span>
-                <span className="font-medium tabular-nums text-slate-400" style={{ fontSize: 13 }}>
-                  ${claim.initialReserve.toLocaleString()}
-                </span>
-              </div>
-
-              {/* Separator with label */}
-              <div className="flex items-center gap-3 mb-3">
-                <div className="h-px flex-1 bg-slate-100" />
-                <span className="text-[9px] font-bold text-slate-300 uppercase tracking-widest">current</span>
-                <div className="h-px flex-1 bg-slate-100" />
-              </div>
-
-              {/* Current reserve — focal point */}
-              <div className="flex justify-between items-baseline mb-3">
-                <span
-                  className="font-semibold text-slate-500 uppercase"
-                  style={{ fontSize: 9, letterSpacing: '0.1em' }}
-                >
-                  Reserve
+                  Current Reserve
                 </span>
                 <span
                   className="font-black text-[#0f3460] tabular-nums"
-                  style={{ fontSize: 26, letterSpacing: '-0.02em', lineHeight: 1 }}
+                  style={{ fontSize: 22, letterSpacing: '-0.02em', lineHeight: 1 }}
                 >
                   ${claim.reserve.toLocaleString()}
                 </span>
               </div>
-
               {reserveIncreased && (
                 <div
-                  className="flex items-center gap-2.5 rounded-lg px-3 py-2.5 mt-1"
-                  style={{
-                    background: '#fffbeb',
-                    border: '1px solid #fde68a',
-                  }}
+                  className="flex items-center gap-2 rounded-lg px-3 py-2 mt-3"
+                  style={{ background: '#fffbeb', border: '1px solid #fde68a' }}
                 >
-                  <svg width="13" height="13" viewBox="0 0 13 13" fill="none" className="shrink-0">
-                    <circle cx="6.5" cy="6.5" r="5.5" stroke="#d97706" strokeWidth="1.3"/>
-                    <path d="M6.5 3.5v3.5l2 2" stroke="#d97706" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/>
+                  <svg width="12" height="12" viewBox="0 0 12 12" fill="none" className="shrink-0">
+                    <circle cx="6" cy="6" r="5" stroke="#d97706" strokeWidth="1.3"/>
+                    <path d="M6 3.5v2.8l1.8 1.8" stroke="#d97706" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/>
                   </svg>
                   <span className="font-bold text-amber-700 leading-tight" style={{ fontSize: 10 }}>
-                    Increased {claim.dateOfLoss} · Pending approval
+                    Increased from ${claim.initialReserve.toLocaleString()} · Pending approval
                   </span>
                 </div>
               )}
             </div>
           </div>
 
-          {/* Claim Details */}
-          <div className="bg-white rounded-xl border border-slate-200 overflow-hidden" style={CARD_STYLE}>
-            <SectionHeader title="Claim Details" />
-            <dl className="px-5 pt-2 pb-3">
-              <InfoRow label="Claim ID"      value={claim.id} mono />
-              <InfoRow label="Assigned To"   value={claim.assignedAdjuster} />
-              <InfoRow label="SLA Remaining" value={`${claim.slaDaysRemaining} days`} />
-            </dl>
-          </div>
 
         </div>
 
