@@ -257,14 +257,14 @@ export default function AutoAlertsPage({ claim, onBack, docPackage, onAlertAdded
                   className="inline-block rounded-full border-2 border-white border-t-transparent shrink-0"
                   style={{ width: 12, height: 12, animation: 'spin 0.7s linear infinite' }}
                 />
-                Setting Up Alerts…
+                Configuring…
               </>
             ) : allDone ? (
               <>
                 <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
                   <path d="M2 6.5l3.5 3.5L11 3" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
                 </svg>
-                Alert Setup Complete
+                Coordination Complete
               </>
             ) : (
               <>
@@ -273,7 +273,7 @@ export default function AutoAlertsPage({ claim, onBack, docPackage, onAlertAdded
                   <path d="M6.5 4.5V7l1.5 1.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
                   <path d="M4.5 1.5h4" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
                 </svg>
-                Run Alert Setup
+                Run Workflow Coordination
               </>
             )}
           </button>

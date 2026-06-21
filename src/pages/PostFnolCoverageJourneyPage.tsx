@@ -523,7 +523,7 @@ export default function PostFnolCoverageJourneyPage({ claim, onBack, onViewDocum
                 idx === 1 ? (capFlags.multiPartyAdded ? 'Added to Documentation' : 'Open Multi-Party Conversations')
                 : idx === 2 ? (workflowStage === 'COMPLETED' ? 'Committed to ClaimCenter' : capFlags.documentationVisited ? 'Ready for Review' : undefined)
                 : idx === 3 ? (capFlags.enrichmentAdded ? 'Added to Documentation' : 'Open Auto-Enrichments')
-                : idx === 4 ? (capFlags.alertsAdded ? 'Added to Documentation' : 'Open Auto-Alerts')
+                : idx === 4 ? (capFlags.alertsAdded ? 'Added to Documentation' : 'Open Workflow Coordination')
                 : undefined;
               return (
                 <CapabilityCard
